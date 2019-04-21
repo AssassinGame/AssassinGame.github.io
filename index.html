@@ -1,0 +1,94 @@
+<!DOCTYPE html>             <!-- Declare that this an HTML5 document. -->
+<html lang="en">            <!-- Declare the content language. -->
+<head>
+    <meta charset="utf-8">  <!-- Declare the document's character set. -->
+    <title>Assassin Admin App</title>   <!-- Set the page title.  Will be displayed at the top of the browser window and in bookmarks.  -->
+    <link rel="stylesheet" href="index.css">    <!-- Include styles from index.css. -->
+</head>
+<!-- ***  Start aside section ****  -->
+<aside>
+  <button id="buildReportButton">Build Reports</button>
+  <button id="showReportButton">Show Reports</button>
+  <br><scan id="activeChain"></scan><br>
+  <br><scan id="waitingAssignment"></scan><br>
+  <br><scan id="scheduled"></scan><br>
+  <br><scan id="inactive"></scan><br>
+  <br><scan id="onBreak"></scan><br>
+  <br><scan id="registered"></scan><br>
+  <br><scan id="gameOver"></scan><br>
+  <br><scan id="errors"></scan><br>
+
+</aside>
+
+  <body>
+    Assassin Admin Application
+    <br><br>
+    <!--  Message Label frequently updated -->
+    <div id = "messageBoard">Message Board...</div>
+    <br>
+    <span id="gameStatusLabel">Game Status: </span> <span id="gameStatus"></span>  <br><br>
+
+    <!--  Player Data  -->
+    <span id="playerIdLabel">Player ID: </span><input type="text" id="idInputBox" value="">  <br>
+    <span id="playerIdLabel">Player Name: </span><input type="text" id="nameInputBox" value="">  <br>
+
+    <br>
+    <!--  Registration Radio Buttons - ASAP into Waiting or Scheduled  -->
+    <form id="registrationTypes" action="">
+      <input type="radio" name="registration"checked="checked"><span id="registrationLabelWaiting">Waiting</span>
+      <input type="radio" name="registration"><span id="registrationLabelScheduled">Scheduled</span><br>
+    </form>
+
+    <!--  Log in and Add admin buttons disabled for now
+    <button type="button" id="logInButton">Log In</button> &nbsp &nbsp <button id="addAdminButton">Add Admin</button><br><br>
+    -->
+    <br>
+    <button type="button" id="blankGameButton">Blank Game</button> &nbsp &nbsp
+    <button type="button" id="preBuiltRunningGameButton">Running Game</button> &nbsp &nbsp
+    <button type="button" id="preBuiltPlayersWaitingGameButton">Waiting Game</button> &nbsp &nbsp
+    <button type="button" id="preBuiltPausedGameButton">Paused Game</button> &nbsp &nbsp
+    <button type="button" id="clearFormButton">Clear Form</button> <br><br>
+
+    <button type="button" id="startGameButton">Start Game</button> &nbsp &nbsp <button id="endGameButton">End Game</button> &nbsp &nbsp <button id="bombButton">Bomb</button> &nbsp &nbsp <button id="searchPlayerButton">Search Player</button> &nbsp &nbsp <button id="removePlayerButton">Remove Player</button><br><br>
+
+    <button type="button" id="addPlayerButton">Add Player</button> &nbsp &nbsp <button id="approveButton">Approve Player</button> &nbsp &nbsp <button id="approveAllButton">Approve All Registered</button> &nbsp &nbsp <button id="volunteerButton">Get Volunteer</button> &nbsp &nbsp <button id="markPaidButton">Mark Paid</button> <br><br>
+    <scan id="payBountiesNumberLabel">Number of bounties: </scan><input type="text" id="payBountiesNumber">  &nbsp
+    <button type="button" id="payBountiesButton">Pay Bounties</button>  &nbsp &nbsp
+    <button type="button" id="checkBountiesButton">Check Bounties Owed</button>
+    <br><br>
+
+    <scan id="minBreakLengthLabel">Min break length (minutes): </scan><input type="text" id="minBreakLength">  &nbsp
+    <button type="button" id="updateGameData">Update Game Data</button>
+    <br><br>
+
+    <span id="playerPictureInputLabel">Choose a Player Picture</span>
+    <input type="file" id="playerPictureInput">
+    <br><br>
+    <button id="uploadPlayerPictureButton">Upload Player Picture</button> &nbsp &nbsp
+    <button id="viewPlayerPictureButton">View Player Picture</button> <br><br>
+    <br>
+    <div id="myPictureLabel">Player Picture:</div>
+
+    <img id="playerPicture" src=""><br>
+
+    <br><br>
+    <div id='statsLabel'>Statistics: </div>
+    Total Players: <scan id="statsTotal"></scan><br>
+    Active Players: <scan id="statsActive"></scan><br>
+    Total Kills: <scan id="statsTotalKills"></scan><br>
+    Todays Kills: <scan id="statsTodaysKills"></scan><br>
+    Current Leader: <scan id="statsCurrentLeader"></scan><br>
+
+    <br>
+    <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-messaging.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-functions.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.5.3/firebase-storage.js"></script>
+
+    <script src="index.js"></script>    <!-- Include index.js as a JavaScript script file. -->
+  </body>
+
+</html>
