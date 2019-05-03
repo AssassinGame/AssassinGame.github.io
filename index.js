@@ -1,18 +1,19 @@
 'use strict';
 
-// 2 db created so simultaneous testing is possible
 const FIRESTORE_DB_1 = 1;
 const FIRESTORE_DB_2 = 2;
 var firebaseDB = FIRESTORE_DB_1;
 
-// Each data field within a player - Only used to pre-build games
-const INDEX_PLAYER_ID = 0;
-const INDEX_PLAYER_NAME = 1;
-const INDEX_PLAYER_STATUS = 2;
-const INDEX_PLAYER_TARGET = 3;
-const INDEX_PLAYER_PICTURE_NAME = 4;
-const INDEX_PLAYER_PAID = 5;
-const INDEX_PLAYER_BREAK_TIMESTAMP = 6;
+const ENTER_KEY = 13; // intercept enter key for default processing
+const PLAYER_ID_LENGTH = 8;   // length of player id
+const OWED_STARTER = 0;
+const SCROLLING_MESSAGE_LENGTH = 3;
+
+const SYSTEM_ID = "SYSTEM";
+
+const ERROR_GAME_DATA_REF_DOESNT_EXIST = "Game Data doc doesn't exist";
+const ERROR_GAME_DATA_REF_GET_FAILED = "Game Data Get Failed.";
+
 
 // Game status constants
 const GAME_STATUS_NOT_STARTED = 0;
@@ -22,9 +23,10 @@ const GAME_STATUS_COMPLETED = 3;
 const GAME_STATUS_UNKNOWN = 4;
 const GAME_STATUS_OVERNIGHT =5;
 
+
 const GAME_STATUS_NOT_STARTED_TEXT = "Not Started";
 const GAME_STATUS_ACTIVE_TEXT = "Active";
-const GAME_STATUS_PAUSED_TEXT = "Game paused, only 1 active player";
+const GAME_STATUS_PAUSED_TEXT = "Paused";
 const GAME_STATUS_COMPLETED_TEXT = "Completed";
 const GAME_STATUS_UNKNOWN_TEXT = "Unknown Status";
 const GAME_STATUS_OVERNIGHT_TEXT = "Game Paused at Night";
@@ -32,8 +34,6 @@ const GAME_STATUS_OVERNIGHT_TEXT = "Game Paused at Night";
 // Player status constants
 const PLAYER_STATUS_LOGGED_OFF = 0;
 const PLAYER_STATUS_LOGGED_OFF_TEXT = "Logged Off";
-const PLAYER_STATUS_REGISTER_IN_PROGRESS = 1;
-const PLAYER_STATUS_REGISTER_IN_PROGRESS_TEXT = "";
 const PLAYER_STATUS_REGISTERED = 2;
 const PLAYER_STATUS_REGISTERED_TEXT = "Registered";
 const PLAYER_STATUS_WAITING = 3;
@@ -50,100 +50,101 @@ const PLAYER_STATUS_GAME_OVER = 8;
 const PLAYER_STATUS_GAME_OVER_TEXT = "Game Completed";
 const PLAYER_STATUS_UNKNOWN_TEXT = "Unknown Status";
 
-const REGISTERED_ASAP = 0;      // waiting queue - enter game as soon as possible
-const REGISTERED_SCHEDULED = 1; // scheduled queue - wait to enter game until scheduled start
+const REGISTERED_ASAP = 0;      // enter game as soon as possible
+const REGISTERED_SCHEDULED = 1; // wait to enter game until scheduled start
 
-const NOT_PAID = " Not Paid";
-const PAID = " Paid";
+// Screen labels
+const MY_TARGETS_PICTURE_LABEL = "My Target's Picture: <br>";
+const MY_PICTURE_LABEL = "My Picture:"
+const CONFIRM_KILL_LABEL = "Name of your target's target: ";
 
-const ACTIVE_CHAIN_LABEL = "Active Chain: <br>";
-const WAITING_ASSIGNMENT_LABEL = "Waiting Assignment: <br>";
-const INACTIVE_LABEL = "Inactive: <br>";
-const ON_BREAK_LABEL = "On Break: <br>";
-const REGISTERED_LABEL = "Registered: <br>";
-const SCHEDULED_LABEL = "Scheduled: <br>";
-const GAME_OVER_LABEL = "Game Over: <br>";
-const ERRORS_LABEL = "Player Errors: <br><br>";
-
-const EVENT_TYPE_APP_STARTED = 0;
-const EVENT_TYPE_START_GAME = 1;
-const EVENT_TYPE_LOGIN = 2;
+// Events
+const EVENT_TYPE_LOGIN = 3;
 const EVENT_TYPE_INCORRECT_LOGIN = 4;
 const EVENT_TYPE_LOGOFF = 5;
-const EVENT_TYPE_ADD_PLAYER = 10;
-const EVENT_TYPE_ADD_PLAYER_FAILED = 11;
-const EVENT_TYPE_BOMB = 13;
-const EVENT_TYPE_PAY_BOUNTY = 18;
-const EVENT_TYPE_PAY_BOUNTY_FAILED = 19;
+const EVENT_TYPE_CONFIRM_BOUNTY = 6;
+const EVENT_TYPE_BOUNTY_FAILED = 7;
+const EVENT_TYPE_BUY_BACK_IN = 12;
+const EVENT_TYPE_PING_TARGET = 14;  // not implemented yet
+const EVENT_TYPE_ANSWER_PING = 15;  // not implemented yet
+const EVENT_TYPE_TAKE_BREAK = 16;
+const EVENT_TYPE_RETURN_FROM_BREAK = 17;
+const EVENT_TYPE_ASSASSINATED = 18;
+const EVENT_TYPE_ACTIVATED = 19;
+const EVENT_TYPE_WAITING = 20;
+const EVENT_TYPE_VOLUNTEERED = 21;
 
-const OWED_STARTER = 0; // initial number of bounties owed.  Can change for testing purposes
+// -----------------------------------------------------------------
+// Player events
+
+const EVENT_TYPE_PLAYER_LOGIN = 101;
+const EVENT_TYPE_PLAYER_REGISTER_SUCCESS_ASAP = 102;
+const EVENT_TYPE_PLAYER_REGISTER_SUCCESS_SCHED = 103;
+const EVENT_TYPE_PLAYER_CONFIRM_KILL = 104;
+const EVENT_TYPE_PLAYER_TAKE_BREAK = 105;
+const EVENT_TYPE_PLAYER_RETURN_BREAK = 106;
+const EVENT_TYPE_PLAYER_BUY_BACK_IN = 107;
+const EVENT_TYPE_PLAYER_UPLOAD_PIC = 108;
+const EVENT_TYPE_PLAYER_QUIT_GAME = 109;
+const EVENT_TYPE_PLAYER_VOLUNTEER = 110;
+
+// -----------------------------------------------------------------
+
+// General constants
+const OFF = 0;
+const ON = 1;
 const MIN_LENGTH_BREAK_DEFAULT = 2; // number of minutes minimum break length
-const PLAYER_ID_LENGTH = 8;   // length of player id
-const REPORTS_DELAY = 2;  // seconds
-const MORNING_START_TIME = 9;  // 9 am
-const NIGHT_END_TIME = 21;
-const STATUS_TIMER_INTERVAL = 60000; // 1 minute
+const PIC_MISSING_TARGET = 1;
+const PIC_MISSING_MINE = 2;
 
-// message text area
-const MESSAGE_TEXT_PLAYER_DOESNT_EXIST = "Error - Player doesn't exist, id = "
-const MESSAGE_TEXT_INTRO = "Assassin Admin beta version.  No log in necessary."
-const MESSAGE_TEXT_ADD_PLAYER = "Add player success. ID = ";
-const MESSAGE_TEXT_INVALID_SCREEN_DATA = "Invalid screen data";
-const MESSAGE_TEXT_MOVE_WAITING = "Successfully moved to waiting - Player ";
-const MESSAGE_TEXT_PLAYER_NOT_FOUND_INACTIVE = "Player not found in inactive status, id = ";
-const MESSAGE_TEXT_INVALID_BOUNTY_DATA = "Invalid bounty data.  Try again.  The number of bounties owed is ";
-const MESSAGE_TEXT_BOUNTIES_PAID = "Successful Bounty paid. Bounties remaining: ";
-const MESSAGE_TEXT_ERROR_GETTING_PLAYER_REF = "Error getting playerRef.get().  Try again.";
-const MESSAGE_TEXT_BOMB_DROPPED = "Bomb Dropped!";
-const MESSAGE_TEXT_UPLOAD_PIC_SUCCESS = "Upload Player Picture Success.";
-const MESSAGE_TEXT_VIEW_PIC_SUCCESS = "View Player Picture Success.";
-const MESSAGE_TEXT_ALREADY_STARTED = "The game has already started.";
-const MESSAGE_TEXT_RUNNING_GAME_STARTED = "Successful start of pre-built running game.";
-const MESSAGE_TEXT_WAITING_GAME_STARTED = "Successful start of pre-built waiting game.";
-const MESSAGE_TEXT_BLANK_GAME = "Successful blank game.";
-const MESSAGE_TEXT_INVALID_BOMB = "Bombs can only be dropped if game started.";
-const MESSAGE_TEXT_ERROR_NEED_2_PLAYERS_TO_START = "Can't start game without at least 2 players in waiting queue.";
-const MESSAGE_TEXT_GAME_STARTED = "Successful Game Start.";
-const MESSAGE_TEXT_CANT_PRE_BUILT_PAUSED_GAME = "Prebuilt paused game only available after you click Blank Game.";
-const MESSAGE_TEXT_CANT_PRE_BUILT_RUNNING_GAME = "Prebuilt running game only available after you click Blank Game.";
-const MESSAGE_TEXT_CANT_PRE_BUILT_WAITING_GAME = "Prebuilt waiting game only available after you click Blank Game.";
-const MESSAGE_TEXT_INVALID_STATE_NO_GAME_DATA_DOC = "Invalid state.  No game data doc.";
-const MESSAGE_TEXT_PICTURE_NOT_FOUND = "Picture file not found for Player id = ";
-const MESSAGE_TEXT_PLAYER_ALREADY_EXISTS = "Error - Player already exists, can't Add.";
-const MESSAGE_TEXT_PLAYER_CANT_APPROVE = "Player was not inactive or registered, can't approve, id = ";
-const MESSAGE_TEXT_SEARCH_NO_PLAYERS_NAME = "No players found with name = ";
-const MESSAGE_TEXT_SEARCH_NO_PLAYERS_ID = "No players found with id = ";
-const MESSAGE_TEXT_REMOVED_PLAYER = "Successfully removed player, id = ";
-const MESSAGE_TEXT_CANT_START_GAME = "You can't start a game now, status is ";
+// Message Text Constants - Find similar and clean up.
+const MESSAGE_TEXT_WELCOME = "Welcome to Assassin.  Enter ID and Click Login or Enter Name and Click Register.";
+const MESSAGE_TEXT_LOGIN = "Successul log in.";
+const MESSAGE_TEXT_LOGIN_FAILED = "Player login failed. id = ";
+const MESSAGE_TEXT_LOGOFF = "Successful log off.";
+const MESSAGE_TEXT_PLAYER_LOGGED_OFF = "Player currently logged off";
+const MESSAGE_TEXT_CONFIRM_BOUNTY = "Bounty Confirmed!";
+const MESSAGE_TEXT_BOUNTY_FAILED = "Confirm Bounty Failed. Bad name entered was ";
+const MESSAGE_TEXT_BUY_BACK_IN = "Successful re-buy.";
+const MESSAGE_TEXT_PING_TARGET = "Are you still at PorcFest?";  // not implemented yet
+const MESSAGE_TEXT_ANSWER_PING = "Yes, I'm still at PorcFest.";  // not implemented yet
+const MESSAGE_TEXT_TAKE_BREAK = "Successful Break.";
+const MESSAGE_TEXT_RETURN_BREAK = "Successful Return From Break.";
+const MESSAGE_TEXT_QUIT = "Successful Quit Game.";
+const MESSAGE_TEXT_ASSASSINATED = "You have been assassinated!";
+const MESSAGE_TEXT_ACTIVATED = "You are activated!";
+const MESSAGE_TEXT_WAITING = "You are waiting to enter game.";
+const MESSAGE_TEXT_NEW_TARGET= "You are active, check for a new target.";
+const MESSAGE_TEXT_BOUNTY_OWED_CHANGE = "Change in Bounties Owed.";
+const MESSAGE_TEXT_INVALID_SCREEN_DATA = "Invalid screen data.";
+const MESSAGE_TEXT_PAUSED_GAME = "Game paused. Only 1 active player.";
+const MESSAGE_TEXT_REGISTER_PLAYER = "Sucessfully Registered.  Login and upload a picture. Admin will review and activate you.";
+const MESSAGE_TEXT_PLAYER_NOT_FOUND = "Player not found.";
 const MESSAGE_TEXT_GAME_COMPLETED = "The game is over.";
-const MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE = "You must choose 1 file.";
-const MESSAGE_TEXT_MARK_PAID = "Successful mark paid.";
+const MESSAGE_TEXT_CANT_REGISTER_GAME_OVER = "You can't register, the game is over.";
+const MESSAGE_TEXT_PLAYER_ALREADY_EXISTS = "You generated a random number for a player that already exists.  Click Register again.";
+const MESSAGE_TEXT_VOLUNTEERED = "Successful volunteer.  You are inactive, but can buy back in.";
+const MESSAGE_TEXT_SCHEDULED = "You are scheduled to enter the game.";
+const MESSAGE_TEXT_FATAL_ERROR = "Fatal Error - Connection to DB.  Contact Admin.";
+const MESSAGE_TEXT_UPLOAD_PIC_FAILED = "Upload picture failed.";
+const MESSAGE_TEXT_UPLOAD_PIC_SUCCESS = "Upload picture success."
+const MESSAGE_TEXT_FILE_NOT_FOUND = "File not found."
+const MESSAGE_TEXT_PICTURE_NOT_FOUND = "My Picture file not found.";
+const MESSAGE_TEXT_TARGET_PICTURE_NOT_FOUND = "Target Picture Not Found.";
+const MESSAGE_TEXT_VOLUNTEER_NEEDED = "Click the volunteer button to exit the game with a refund of 1 bounty.";
+const MESSAGE_TEXT_CANT_VOLUNTEER = "Only active players can volunteer to move to inactive status.";
+const MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK = "Too early to return from break.";
+const MESSAGE_TEXT_CANT_TAKE_BREAK = "You can only take a break when active.";
+const MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK = "You are not on break.  Can't return.";
+const MESSAGE_TEXT_VOLUNTEER_FILLED = "Volunteer request filled.";
+const MESSAGE_TEXT_NEXT_START = "The next scheduled start is ";
+const MESSAGE_TEXT_GAME_STATUS_OVERNIGHT = "Game Paused Until Morning Restart at ";
+const MESSAGE_TEXT_SEE_RULES_BELOW = "Scroll down to view rules below statistics.";
+const MESSAGE_TEXT_BOMB_DROPPED = "Bomb dropped!  Check for a new target.";
+const GAME_FUNCTION_DISABLED_OVERNIGHT = "";
 
-var lastEvent;
+var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol> <li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>The game begins Wednesday at Noon and ends Saturday at 9:00 pm.</li><li>No assassinations are valid between 9 AM and 9 PM.</li><li>Contact the admin, Jon Pawelko, on the Whova App – PorcFest event if you have any questions.  You can post general messages on the Whova – PorcFest – Assassin group.</li><li>When you first register and your picture is approved, you will be placed in the Waiting Queue.  This may be before the game starts or during the game if you joined while the game was in progress.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you about you being their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>When your status changes to Active, you will see the name and picture of your target on this website.  Once you are Active and have a target, you begin playing.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb” and all target assignments will be reshuffled.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 kills and above, capped at $5.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the conversation that starts with 'I just killed you' does not happen.</li></ol>";
 
-// in progress game with closed loop of 4 players
- var presetPlayers = new Array;
- presetPlayers.push(["12345678", "Carlo", PLAYER_STATUS_ACTIVE, "98765432", "carlo pic.jpg",1]);
- presetPlayers.push(["98765432", "Joey", PLAYER_STATUS_ACTIVE, "99998888", "joey pic.jpg",1]);
- presetPlayers.push(["99998888", "Adlani", PLAYER_STATUS_ACTIVE, "11113333", "adlani pic.jpg",1]);
- presetPlayers.push(["11113333", "Jon", PLAYER_STATUS_ACTIVE, "44445555", "jon pic.jpg",1]);
- presetPlayers.push(["44445555", "Ofer", PLAYER_STATUS_ACTIVE, "12345678", "ofer.jpg",1]);
-
-  // Reports area
-  var tempChainMessage = "";
-  var tempWaitingMessage = "";
-  var tempScheduledMessage = "";
-  var tempInactiveMessage = "";
-  var tempOnBreakMessage = "";
-  var tempRegisteredMessage = "";
-  var tempGameOverMessage = "";
-  var tempErrorsMessage = "";
-
-  var statsTotal = 0;
-  var statsActive = 0;
-  var statsTotalKills = 0;
-  var statsTodaysKills = 0;   // zzz - need to have reset each day
-  var statsCurrentLeader = 0;
 
 // ----- Initialize Firebase -----------------------------------------------------
 // Get the config info from the database settings area on your firestore database
@@ -178,1742 +179,1270 @@ else
 // init firebase
 firebase.initializeApp(config);
 
-// create shorthand reference to the database areas
+// create shorthand reference to the database
 var db = firebase.firestore();
-var storage = firebase.storage();
-var storageRef = storage.ref();
 
-// this command needed to get firestore timestamps instead of system date objects - found it online, works
 const settings = {timestampsInSnapshots: true};
 db.settings(settings);
 
+// Get a reference to the storage service, which is used to create references in your storage bucket
+var storage = firebase.storage();
+var storageRef = storage.ref();
+
 // -----  end init firebase ---------------------------------------
 
-// global var to store game status
-var status;
+// Turn off controls - Trying to get rid of flicker - Error Check
+// document.getElementById("buyBackInButton").style.visibility = "hidden";
 
-// Global data to store user inputted data into form
-var id;
+// global html body variable
+var myBody = document.getElementById("myBody");
+
+// global region and html variables
+
+var loginRegion = "";
+var buttonStripRegion = "";
+
+var headerHTML = "Assassin Player Application<br>";
+var loginOrRegisterHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Name: </span><input type='text' id='nameInputBox' value='' size='10'> <button id='registerButton' onclick='registerButtonClick()'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()'>View Rules</button><br> <form id='registrationTypes' action=''> <input type='radio' name='registration' checked='checked' id='registerASAP'><span id='registrationLabelASAP'>ASAP</span> <input type='radio' name='registration' id='registerSchedule'><span id='registrationLabelScheduled'>Scheduled</span><br> </form>";
+
+var loginOnlyHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()'>Log In</button><br>";
+
+var playerDataHTML = "<span id='myIdLabel'>My ID: </span><span id = 'myId'></span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'></span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'></span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'></span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'></span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'></span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'></span>";
+
+var myTargetDataHTML = "<span id='myTargetsPictureLabel'>" + CONFIRM_KILL_LABEL + "</span><img id='targetPicture' src=''><br>";
+var confirmKillHTML = "<span id='targetNameLabel'>" + CONFIRM_KILL_LABEL + "</span><input type='text' id='targetNameBox' value='' size='12'> <br> <button id='confirmKillButton' onclick='confirmAssassinationButtonClick()'>Confirm Assassination</button><br>";
+var messageHeaderHTML = "<span id='messageBoardLabel'>--- Message Board (Newest Message on Top) --- </span>"
+var statsRegtionHTML = "<span id='statsLabel'>Statistics: </span> <div id = 'statsData'></div>"
+
+var buttonStrip;
+var buyBackInButtonHTML = "<button id='buyBackInButton' onclick='buyBackInButtonClick()'>Buy Back In</button>";
+var quitGameButtonHTML = "<button id='quitGameButton' onclick='quitGameButtonClick()'>Quit Game</button>";
+var rulesButtonHTML = "<button id='rulesButton' onclick='rulesButtonClick()'>View Rules</button>";
+var logOffButtonHTML = "<button id='logOutButton' onclick='logOffButtonClick()'>Log Off</button>";
+
+var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButtonClick()'>Volunteer</button>";
+var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()'>Take a Break</button>";
+var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()'>Return From Break</button>";
+
+var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()'>Upload Your Picture</button><br> <br>";
+var myPictureAreaHTML = "<div id='myPictureLabel'></div> <img id='myPicture' src=''>";
+var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()'>View My Picture</button>";
+var rulesRegionHTML = "<u>Rules: </u><br><br>Here are the rules";
+
+// Global vars to hold player  data  ----------------------
+var playerId;
 var name;
-var target;
-var regType;    // registration type
-var regenerateNeeded = false;
+var status = PLAYER_STATUS_LOGGED_OFF;  // player status
+var loggedIn = false;
+var iVolunteered = false;
+var showMyPic = false;
+var myURL = "";
+var owed = 0;
+var total = 0;
+var targetName = "";
+var targetId = "";
+var nameOfTargetsTarget;
+var myLinkRef; // reference to my link in the chain
+var myPicFileName;
+var bombAlerted = 0;  // specific to the player
+var showRules = false;
 
-// create reference to message board
-var message = document.getElementById("messageBoard");
-var blankGameClicked = false;  // use var to ensure clean game if using prebuilt functions
+// data from Game Data on db
+var gameStatus = GAME_STATUS_NOT_STARTED;  // default
+var morningStartTime;
+var nightEndTime;
+var minBreakLength = MIN_LENGTH_BREAK_DEFAULT;
+var volunteerNeeded = false;
+var nextScheduledStart = new Date();
+var myRegistrationType; // either asap or Scheduled
+var bombDropped = 0;
+var statsTotal = 0;
+var statsWaiting = 0;
+var statsSched = 0;
+var statsActive = 0;
+var statsTotalKills = 0;
+var statsTodaysKills = 0;   // zzz - need to have reset each day
+var statsCurrentLeader = 0;
 
-// check database for game status and update screen ------------------------------------
+// unsubscribe global vars
+var playerUnsubscribe;  // var to store player subscription, needed for later unSubscribe
+var linkUnsubscribe;    // var to store link subscription
+var gameDataUnsubscribe;  // var to store game data subscription
+
+// create an array of messages for display to message board, grab reference to screen message board
+var messages = new Array;
+var errors = db.collection("errors");
+var events = db.collection("events");
+
+// ------------------------------------------------------------------
+// Start of actual code ---------------------------------------------
+
+// Handle Game Data
 // get game status and update field,  create a reference to the document
 var gameDataRef = db.collection("gameData").doc("gameData");
 
-var minBreakLength = MIN_LENGTH_BREAK_DEFAULT;
-var volunteerNeeded = false;  // used for scheduled starts
-var nextScheduledStart = "";
-
-var morningStartTime;  // retrieve from DB
-var nightEndTime;      // retrieve from DB
-
-var registrationType; // either asap into waiting or Scheduled
-
-var regenTimer = setInterval(regenerateReports, (1500 * REPORTS_DELAY));  // milliseconds * seconds
-
-// kick off game status timer
-
-var statusTimerID;
-
 gameDataRef.get().then(function(doc)
 {
-    if (doc.exists)
-    {
-        console.log("Game Data exists, status is " + doc.data().status + "  Decoded status is " + decodeGameStatus(doc.data().status));
-        // set initial message and data
+  if (doc.exists)
+  {
+      gameStatus = doc.data().status;
+      volunteerNeeded = doc.data().volunteerNeeded;
 
-        morningStartTime = doc.data().morningStartTime;
-        nightEndTime = doc.data().nightEndTime;
-        status = doc.data().status;
+      // update needed here or nearby - need to create a listener on game status
+      // document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);  // yyy
+      console.log("Game status is " + decodeGameStatus(gameStatus));
 
-        statusTimerID = setInterval(statusTimer, STATUS_TIMER_INTERVAL);
-
-        statsTotal = doc.data().statsTotal;
-        statsActive = doc.data().statsActive;
-        statsTotalKills = doc.data().statsTotalKills;
-        statsTodaysKills = doc.data().statsTodaysKills;
-        statsCurrentLeader = doc.data().statsCurrentLeader;
-
-        document.getElementById("statsTotal").innerHTML = statsTotal;
-        document.getElementById("statsActive").innerHTML = statsActive;
-        document.getElementById("statsTotalKills").innerHTML = statsTotalKills;
-        document.getElementById("statsTodaysKills").innerHTML = statsTodaysKills;
-        document.getElementById("statsCurrentLeader").innerHTML = statsCurrentLeader;
-
-        function statusTimer()
-        {
-            console.log("Status timer called ");
-
-            var now = new Date();
-            var currentHour = now.getHours();
-
-            console.log("Status timer called. Current Hour is  " + currentHour + " Status is " + decodeGameStatus(status) +  " morningStartTime is " + morningStartTime + " nightEndTime  is " + nightEndTime);
-
-            if ((status == GAME_STATUS_OVERNIGHT) && (currentHour >= morningStartTime))
-            {
-                  // flip game status to active and reset todays kills
-
-                  statsTodaysKills = 0;
-
-                  db.collection("gameData").doc("gameData").update({
-                    status: GAME_STATUS_ACTIVE,
-                    statsTodaysKills: 0
-                  })
-                  .then(function() {
-                    console.log("Set game status to active");
-                  })
-                  .catch(function(error) {
-                    console.error("Set game status to active failed", error);
-                  });
-
-            }
-
-            if ((status == GAME_STATUS_ACTIVE) && (currentHour >= nightEndTime))
-            {
-                  // flip game status to OVERNIGHT
-                  db.collection("gameData").doc("gameData").update({
-                    status: GAME_STATUS_OVERNIGHT
-                  })
-                  .then(function() {
-                    console.log("Set game status to active");
-                  })
-                  .catch(function(error) {
-                    console.error("Set game status to active failed", error);
-                  });
-
-            }
-
-        }
-
-
+      // if min break length doesn't exist in db, default to value set here in code
+      if (doc.data().minBreakLength == 0)
+        minBreakLength = MIN_LENGTH_BREAK_DEFAULT;
+      else
         minBreakLength = doc.data().minBreakLength;
-        console.log("Min break length in minutes is " + minBreakLength);
 
-        document.getElementById("gameStatus").innerHTML = decodeGameStatus(status);
-        message.innerHTML = MESSAGE_TEXT_INTRO + "  Game status is " + decodeGameStatus(status) + ".";
-    }
-    else {
-      console.log("Invalid state.  No game data doc.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_STATE_NO_GAME_DATA_DOC;
-    }
+      console.log("Min break length is " + minBreakLength);
+
+      // store next scheduled start in global var
+      nextScheduledStart = doc.data().nextScheduledStart;
+
+      statsTotal = doc.data().statsTotal;
+      statsWaiting = doc.data().statsWaiting;
+      statsSched = doc.data().statsSched;
+      statsActive = doc.data().statsActive;
+      statsTotalKills = doc.data().statsTotalKills;
+      statsTodaysKills = doc.data().statsTodaysKills;
+      statsCurrentLeader = doc.data().statsCurrentLeader;
+
+      bombDropped = doc.data().bombDropped;
+      morningStartTime = doc.data().morningStartTime;
+      nightEndTime = doc.data().nightEndTime;
+
+      var tempDate = nextScheduledStart.toDate();
+
+      if (volunteerNeeded == true)
+      {
+          console.log("Volunteer Needed is true");
+          postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
+      }
+      postMessage(MESSAGE_TEXT_NEXT_START + tempDate);
+      postMessage(MESSAGE_TEXT_WELCOME);
+
+      renderGame(status);
+
+  }  // end if gameData doc exists
+  else
+  {
+    postMessage(MESSAGE_TEXT_FATAL_ERROR);
+    postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
+  }
 }).catch(function(error) {
+  postMessage(MESSAGE_TEXT_FATAL_ERROR);
+  postError(SYSTEM_ID,ERROR_GAME_DATA_REF_GET_FAILED);
   console.log("Error getting gameRefData.get() document:", error);
-});
+  });
 
 // --------------------------------------------------------------------------
 // subscribe to change in game status **************  Subscribe *************
-gameDataRef.onSnapshot(function(doc)
+
+gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
 {
+    console.log("Within Outer Game - Subscriber on game status change called. Current status is " + decodeGameStatus(gameStatus) + " New status is " + decodeGameStatus(doc.data().status));
+
     if (doc.exists)
     {
-        // update ui and global var
-        document.getElementById("gameStatus").innerHTML = decodeGameStatus(doc.data().status);
-        status = doc.data().status;
+        // turn on or off volunteer button - Player needs to be active.
+        if ((doc.data().volunteerNeeded == true) && (status == PLAYER_STATUS_ACTIVE))
+        {
+            // document.getElementById("volunteerButton").style.visibility = "visible";  // yyy
+            postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
+            volunteerNeeded = true;
+        }
+        else
+        {
+          if ((doc.data().volunteerNeeded == false) && (volunteerNeeded == true))
+          {
+              postMessage(MESSAGE_TEXT_VOLUNTEER_FILLED);
+              volunteerNeeded = false;
+          }
+
+          // document.getElementById("volunteerButton").style.visibility = "hidden";  // yyy
+        }
+
+
+        console.log("Bomb dropped current = " + bombDropped + "  Bomb dropped from db = " + doc.data().bombDropped);
+
+        if ((bombDropped == 0) && (doc.data().bombDropped == 1))
+        {
+            postMessage(MESSAGE_TEXT_BOMB_DROPPED);
+            bombDropped = 1;
+
+            // // create a reference to the document
+            var playerRef = db.collection("players").doc(playerId);
+
+            playerRef.update({
+              bombAlerted: 1
+            })
+            .then(function() {
+              console.log("Players status update success - waiting buy back in.");
+            })
+            .catch(function(error) {
+              console.error("Error player status update to db - waiting buy back in", error);
+            });
+
+
+        }
+
+        renderGame(status);
+
+        // update global vars
+        nextScheduledStart = doc.data().nextScheduledStart;
 
         statsTotal = doc.data().statsTotal;
+        statsWaiting = doc.data().statsWaiting;
+        statsSched = doc.data().statsSched;
         statsActive = doc.data().statsActive;
         statsTotalKills = doc.data().statsTotalKills;
         statsTodaysKills = doc.data().statsTodaysKills;
         statsCurrentLeader = doc.data().statsCurrentLeader;
 
-        document.getElementById("statsTotal").innerHTML = statsTotal;
-        document.getElementById("statsActive").innerHTML = statsActive;
-        document.getElementById("statsTotalKills").innerHTML = statsTotalKills;
-        document.getElementById("statsTodaysKills").innerHTML = statsTodaysKills;
-        document.getElementById("statsCurrentLeader").innerHTML = statsCurrentLeader;
-
-        // if game is paused, update ui and delete chain
-        if (doc.data().status == GAME_STATUS_PAUSED)
+        // only process change if status changes, check for other data changes above
+        if (gameStatus != doc.data().status)
         {
-            console.log("Paused game subscriber called.");
-            message.innerHTML = GAME_STATUS_PAUSED_TEXT;
-            status = GAME_STATUS_PAUSED;
+            gameStatus = doc.data().status;
 
-            // check if anyone remains in the chain.  If yes, change their player status to waiting
-            // loop through chain, should be max 1 in chain
-            var chainRef = db.collection("chain");
-
-            var query = chainRef.get().then(snapshot =>
+            switch (gameStatus)
             {
-                snapshot.forEach(doc =>
-                {
-                    console.log("Looping through chain at pause scenario - " + doc.id );
+              case GAME_STATUS_ACTIVE:
+              case GAME_STATUS_NOT_STARTED:
 
-                    // set my player status to waiting
-                    db.collection("players").doc(doc.id).update({
-                      status: PLAYER_STATUS_WAITING
-                    })
-                    .then(function() {
-                      console.log("Player status set to waiting after game pause.");
-                    })
-                    .catch(function(error) {
-                      console.error("Error Player status set to waiting after game pause.", error);
-                    });
+                  renderGame(status);
+                  break;
 
-                    // set waiting queue to just me
-                    var tempList = new Array;
-                    tempList.push(doc.id);
+              case GAME_STATUS_COMPLETED:
 
-                    db.collection("queues").doc("waiting").set({
-                        players: tempList
+                  console.log("Game status changed to completed. Subscriber called. Status is " + decodeGameStatus(gameStatus));
+                  status = PLAYER_STATUS_GAME_OVER;  // player status
+
+                  // change player status on the db only if logged in.
+
+                  if (loggedIn == true)
+                  {
+                      console.log("Player is logged in.  Updating status on db to player status game over. id is " + playerId);
+                      // set my player status to waiting
+                      db.collection("players").doc(playerId).update({
+                        status: PLAYER_STATUS_GAME_OVER
                       })
                       .then(function() {
-                        console.log("db setting waiting queue after pause success");
+                        console.log("Player status set to Game Over.");
                       })
                       .catch(function(error) {
-                        console.error("db setting waiting queue after pause failed", error);
+                        console.error("Error Player status set to Game Over.", error);
+                      });
+                  }
+
+                  renderGame(PLAYER_STATUS_GAME_OVER);
+                  break;
+
+              case GAME_STATUS_PAUSED:
+
+                  postMessage(MESSAGE_TEXT_PAUSED_GAME);
+                  console.log("Game status changed to paused. Subscriber called. Status is " + decodeGameStatus(gameStatus));
+
+                  // move myself to queue if I'm active, otherwise ignore, could be on break
+                  if (status == PLAYER_STATUS_ACTIVE)
+                  {
+                      console.log("Paused player status is " + status);
+                      // move to waiting
+                      status = PLAYER_STATUS_WAITING;
+
+                      // set my player status to waiting
+                      db.collection("players").doc(playerId).update({
+                        status: PLAYER_STATUS_WAITING
+                      })
+                      .then(function() {
+                        console.log("Player status set to waiting after game pause.");
+                      })
+                      .catch(function(error) {
+                        console.error("Error Player status set to waiting after game pause.", error);
                       });
 
-                }); // end snapshot for each
+                      // set waiting queue to just me
+                      var tempList = new Array;
+                      tempList.push(playerId);
 
-                // delete chain
-                deleteChain();
+                      db.collection("queues").doc("waiting").set({
+                          players: tempList
+                        })
+                        .then(function() {
+                          console.log("db setting waiting queue after pause success");
+                        })
+                        .catch(function(error) {
+                          console.error("db setting waiting queue after pause failed", error);
+                        });
 
-            });  // end chain get
+                        statsActive = 0;
+                        statsWaiting = 1;
 
-            // regenerateReports();
-            regenerateNeeded = true;
+                        // zzzz
+                        db.collection("gameData").doc("gameData").update({
+                          statsActive: 0,
+                          statsWaiting: 1
+                        })
+                        .then(function() {
+                          console.log("Decr stats active by 1");
+                        })
+                        .catch(function(error) {
+                          console.error("Decr stats active failed", error);
+                        });
 
-        } // end if game status is paused
 
-        if (doc.data().status == GAME_STATUS_OVERNIGHT)
+                      renderGame(PLAYER_STATUS_WAITING);
+
+                  } // end if player is active
+
+                  break;
+
+              case GAME_STATUS_OVERNIGHT:
+
+                  postMessage(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM");
+
+                  if (loggedIn == true)
+                      document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);
+
+                  break;
+
+              default:
+
+            }
+        }
+        else
         {
-            console.log("Overnight game subscriber called.");
-            // message.innerHTML = GAME_STATUS_OVERNIGHT_TEXT;
-
-        } // end if game status is paused for overnight
-
-        //regenerateReports();
-        regenerateNeeded = true;
+            console.log("Render game called from game subscriber");
+            renderGame(status);
+        }
 
     } // end if doc exists
-    else {
-      console.log("Invalid state.  No game data doc.  Subscriber called.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_STATE_NO_GAME_DATA_DOC;
+    else
+    {
+      postMessage(MESSAGE_TEXT_FATAL_ERROR);
+      postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
+      console.log("Game data doc was deleted in subscribe.");
     }
 });
-// end subscribe to change in game status **************  Subscribe *************
 
+// --------- end subscribe to change in game status ***********  Subscribe *************
 
-// --------------------------------------------------------------------------
-// subscribe to change in players collection **************  Subscribe *************
-
-var playerCollectionUnsubscribe;
-
-playerCollectionUnsubscribe = db.collection("players").onSnapshot(function(doc)
-{
-      // regenerateReports();
-      regenerateNeeded = true;
-
-      // console.log("Players subscribe called.");
-      // if (doc.exists)
-      // {
-      //   console.log("Players subscribe called. - doc exists");
-      //   regenerateReports();
-      // }
-});
-
-
-// end subscribe -------------------------------------------------------------------
-
-
-// --------------------------------------------------------------------------
-// subscribe to change in chain **************  Subscribe *************
-
-var chainCollectionUnsubscribe;
-
-chainCollectionUnsubscribe = db.collection("chain").onSnapshot(function(doc)
-{
-      regenerateNeeded = true;
-
-      // regenerateReports();
-      //
-      // console.log("Chain subscribe called");
-      //
-      // if (doc.exists)
-      // {
-      //   console.log("Chain subscribe called - doc exists");
-      //
-      //   regenerateReports();
-      // }
-});
-
-
-// end subscribe -------------------------------------------------------------------
-
-
-// --------------------------------------------------------------------------
-// subscribe to change in waiting queue **************  Subscribe *************
-
-var queuesCollectionUnsubscribe;
-
-queuesCollectionUnsubscribe = db.collection("queues").onSnapshot(function(doc)
-{
-      regenerateNeeded = true;
-
-      //regenerateReports();
-
-      // console.log("Queues subscribe called");
-      //
-      // if (doc.exists)
-      // {
-      //   console.log("Queues subscribe called - doc exists");
-      //   regenerateReports();
-      // }
-      // else
-      // {
-      //   console.log("Queues subscribe called - doc is blank.");
-      // }
-});
-
-
-
-// end subscribe -------------------------------------------------------------------
-
-// --------------------------------------------------------------------------
-// subscribe to change in scheduled queue **************  Subscribe *************
-
-
-
-// end subscribe -------------------------------------------------------------------
-
-
-lastEvent = EVENT_TYPE_APP_STARTED;
-
-// End beginning section global vars, consts, etc...  Functions start below....
-// ------------------------------------------------------------------------------
+// ----------------------------------------------------------------
 
 function getScreenData()
 {
-  // Grab data from input boxes and store in global vars
-  var tempId = document.getElementById("idInputBox").value;
 
-  // strip off extra space if necessary
-  if (String(tempId)[PLAYER_ID_LENGTH] == " ")
-  {
-    // splice off starting at the 8th position
-    console.log("8th space found, slice off extra characters, use first 8 only.");
-    id = String(tempId).slice(0,PLAYER_ID_LENGTH);
-  }
-  else
-  {
-    id = tempId;
-  }
+    var tempId = document.getElementById("idInputBox").value;
 
-  name = document.getElementById("nameInputBox").value;
-
-  var myForm = document.getElementById("registrationTypes");
-
-  console.log("Inside get screen data - ASAP registration checked is " + myForm.registration[0].checked)
-  if (myForm.registration[0].checked == true)
-  {
-      regType = REGISTERED_ASAP;
-  }
-  else
-  {
-      regType = REGISTERED_SCHEDULED;
-  }
-
-  // console.log("Form data: id = " + id + "  Name = " + name);
-}
-
-// --------------------------------------------------------------------------
-//  Start all game functions -
-
-// Start blankGame function --------------------------------------
-// Delete all data
-
-blankGameButton.addEventListener('click', function(e)
-{
-  clearInterval(regenTimer);
-
-  regenTimer = setInterval(regenerateReports, (2000 * REPORTS_DELAY));
-
-  resetInputBoxes();
-  status = GAME_STATUS_NOT_STARTED;
-  document.getElementById("gameStatus").innerHTML = decodeGameStatus(GAME_STATUS_NOT_STARTED);
-  blankGameClicked = true;
-
-  // delete all players in db
-  var playersRef = db.collection("players");
-  var query = playersRef.get().then(snapshot => {
-      var batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      batch.commit();
-    })
-    .catch(err => {
-      console.log('Error getting or deleting players documents', err);
-    });
-
-    // delete chain and queue
-    deleteChain();
-    deleteQueue();
-    deleteSchedQueue();
-    deleteErrors();
-
-    // Set game status to "Not Started"  ---------------------------------
-    db.collection("gameData").doc("gameData").update({
-      status: GAME_STATUS_NOT_STARTED,
-      morningStartTime: MORNING_START_TIME,
-      nightEndTime: NIGHT_END_TIME,      // retrieve from DB
-
-      statsTotal: 0,
-      statsActive: 0,
-      statsTotalKills: 0,
-      statsTodaysKills: 0,
-      statsCurrentLeader: 0,
-      volunteerNeeded: false
-    })
-    .then(function() {
-      console.log("Set game status to Not Started, set volunteerNeeded to false");
-    })
-    .catch(function(error) {
-      console.error("Set game status to Not Started failed", error);
-    });
-
-    message.innerHTML = MESSAGE_TEXT_BLANK_GAME;
-
-});   // end blank game button listener  --------------------------------
-
-// Start preBuiltRunningGame function ------------------------------------
-// Closed loop of 4 active players, no waiting queue
-
-preBuiltRunningGameButton.addEventListener('click', function(e)
-{
-  var i; // for loop var
-
-  resetInputBoxes();
-
-  // Only allow after a blank game executed
-  if ((status != GAME_STATUS_NOT_STARTED) || (blankGameClicked == false))
-  {
-    message.innerHTML = MESSAGE_TEXT_CANT_PRE_BUILT_RUNNING_GAME;
-    console.log("Prebuilt running game only after blank game.");
-    return;
-  }
-
-  blankGameClicked = false;
-
-  var totalPlayers = presetPlayers.length;
-
-  for (i=0;i<presetPlayers.length; i++)
-  {
-      console.log("Adding preset player i = " + i);
-      // add player to the players db
-      db.collection("players").doc(presetPlayers[i][INDEX_PLAYER_ID]).set({
-        status: presetPlayers[i][INDEX_PLAYER_STATUS],
-        owed: OWED_STARTER,
-        total: 0,
-        name: presetPlayers[i][INDEX_PLAYER_NAME],
-        paid: presetPlayers[i][INDEX_PLAYER_PAID],
-        pictureName: presetPlayers[i][INDEX_PLAYER_PICTURE_NAME]
-      })
-      .then(function() {
-        console.log("Add player success.");
-      })
-      .catch(function(error) {
-        console.error("Add player failed error is ", error);
-      });
-
-      console.log("Adding chain link i = " + i);
-      // add link in the chain - set my target to the next player unless I'm already at the end, then set to the first player
-      db.collection("chain").doc(presetPlayers[i][INDEX_PLAYER_ID]).set({
-        target: (i == (presetPlayers.length-1)) ? presetPlayers[0][INDEX_PLAYER_ID] : presetPlayers[i+1][INDEX_PLAYER_ID]
-      })
-      .then(function() {
-        console.log("Success writing to chain.");
-      })
-      .catch(function(error) {
-        console.error("Error writing to chain error is ", error);
-      });
-
-  }  // end for loop
-
-    // Update game status to "Active"  ---------------------------------
-    db.collection("gameData").doc("gameData").update({
-      status: GAME_STATUS_ACTIVE,
-      statsTotal: totalPlayers,
-      statsActive: totalPlayers
-    })
-    .then(function() {
-      console.log("Set game status to Active");
-    })
-    .catch(function(error) {
-      console.error("Set game status to Active failed", error);
-    });
-
-    status = GAME_STATUS_ACTIVE;
-    document.getElementById("gameStatus").innerHTML = decodeGameStatus(GAME_STATUS_ACTIVE);
-    message.innerHTML = MESSAGE_TEXT_RUNNING_GAME_STARTED;
-
-});   // End preBuiltRunningGame button listener -------------------------------
-
-// start preBuiltPlayersWaitingGame function -------------------------
-// Only load players into waiting queue
-
-preBuiltPlayersWaitingGameButton.addEventListener('click', function(e)
-{
-    resetInputBoxes();
-
-    if ((status != GAME_STATUS_NOT_STARTED) || (blankGameClicked == false))
+    // strip off extra space if necessary
+    if (String(tempId)[PLAYER_ID_LENGTH] == " ")
     {
-      message.innerHTML = MESSAGE_TEXT_CANT_PRE_BUILT_WAITING_GAME;
-      console.log("Prebuilt waiting game only after blank game.");
-      return;
+      // splice off starting at the 8th position
+      console.log("8th space found, slice off extra characters, use first 8 only.");
+      playerId = String(tempId).slice(0,PLAYER_ID_LENGTH);
     }
-
-    blankGameClicked = false;
-
-  var tempList = new Array;
-  var i;
-
-  for (i=0;i<presetPlayers.length; i++)
-  {
-    console.log("Adding a prebuilt player to game");
-    tempList.push(presetPlayers[i][INDEX_PLAYER_ID]); // pull the id from the players list
-
-    // add player to the players db
-    db.collection("players").doc(presetPlayers[i][INDEX_PLAYER_ID]).set({
-      status: PLAYER_STATUS_WAITING,
-      owed: OWED_STARTER,
-      total: 0,
-      paid: presetPlayers[i][INDEX_PLAYER_PAID],
-      name: presetPlayers[i][INDEX_PLAYER_NAME],
-      pictureName: presetPlayers[i][INDEX_PLAYER_PICTURE_NAME]
-    })
-    .then(function() {
-      console.log("Add player success. Name is " + presetPlayers[i][INDEX_PLAYER_NAME]);
-    })
-    .catch(function(error) {
-      console.error("Add player failed Name is " + presetPlayers[i][INDEX_PLAYER_NAME], error);
-    });
-
-  }
-
-  console.log("Updating queue here prebuilt waiting game");
-  // update queue
-  db.collection("queues").doc("waiting").set({
-      players: tempList
-  })
-  .then(function() {
-    console.log("db setting waiting queue players array success");
-  })
-  .catch(function(error) {
-    console.error("db setting waiting queue players array failed", error);
-  });
-
-  // waiting
-  message.innerHTML = MESSAGE_TEXT_WAITING_GAME_STARTED;
-
-});
-
-// ------- Start paused game scenario, only 2 players each targeting each other
-
-preBuiltPausedGameButton.addEventListener('click', function(e)
-{
-  var i;
-
-  resetInputBoxes();
-
-  console.log("paused game prebuilt clicked");
-
-  if ((status != GAME_STATUS_NOT_STARTED) || (blankGameClicked == false))
-  {
-    message.innerHTML = MESSAGE_TEXT_CANT_PRE_BUILT_PAUSED_GAME;
-    console.log("Prebuilt paused game only after blank game.");
-    return;
-  }
-
-  blankGameClicked = false;
-
-  for (i=0;i<2; i++)  // 2 players sets up a paused game, each targets each other is ok
-  {
-      // add player to the players db
-      db.collection("players").doc(presetPlayers[i][INDEX_PLAYER_ID]).set({
-        status: presetPlayers[i][INDEX_PLAYER_STATUS],
-        owed: OWED_STARTER,
-        total: 0,
-        name: presetPlayers[i][INDEX_PLAYER_NAME],
-        paid: presetPlayers[i][INDEX_PLAYER_PAID],
-        pictureName: presetPlayers[i][INDEX_PLAYER_PICTURE_NAME]
-      })
-      .then(function() {
-        console.log("Add player success. Name is " + presetPlayers[i][INDEX_PLAYER_NAME]);
-      })
-      .catch(function(error) {
-        console.error("Add player failed Name is " + presetPlayers[i][INDEX_PLAYER_NAME], error);
-      });
-
-      // add link in the chain
-      db.collection("chain").doc(presetPlayers[i][INDEX_PLAYER_ID]).set({
-        target: (i == 0) ? presetPlayers[1][INDEX_PLAYER_ID] : presetPlayers[0][INDEX_PLAYER_ID]
-      })
-      .then(function() {
-        console.log("Success writing to chain - paused game");
-      })
-      .catch(function(error) {
-        console.error("Error writing to chain - paused game");
-      });
-
-  }  // end for loop
-
-  // Set game status to "Active"  ---------------------------------
-  db.collection("gameData").doc("gameData").update({
-    status: GAME_STATUS_ACTIVE
-  })
-  .then(function() {
-    console.log("Set game status to Active");
-  })
-  .catch(function(error) {
-    console.error("Set game status to Active failed", error);
-  });
-
-  status = GAME_STATUS_ACTIVE;
-  document.getElementById("gameStatus").innerHTML = decodeGameStatus(GAME_STATUS_ACTIVE);
-  message.innerHTML = MESSAGE_TEXT_RUNNING_GAME_STARTED;
-
-});       // end prebuilt paused game button
-
-// Start startGame function --------------------------------------------------------
-
-startGameButton.addEventListener('click', function(e)
-{
-  console.log("Start game function called.  Status is " + decodeGameStatus(status));
-
-  resetInputBoxes();
-
-  // Only allow if game not started or paused
-  if ((status == GAME_STATUS_NOT_STARTED) || (status == GAME_STATUS_PAUSED))
-  {
-        // get the waiting queue
-        var queueRef = db.collection("queues").doc("waiting");
-
-        queueRef.get().then(function(doc)
-        {
-          if (doc.exists)
-          {
-              console.log("Doc exists - length of players queue is " + doc.data().players.length);
-
-              if (doc.data().players.length < 2)
-              {
-                console.log("Can't start game without at least 2 players in waiting queue");
-                message.innerHTML = MESSAGE_TEXT_ERROR_NEED_2_PLAYERS_TO_START;
-                return;
-              }
-
-              blankGameClicked = false;
-
-              var totalPlayers = doc.data().players.length;
-              console.log("--------------------- Total players is " + totalPlayers);
-
-              // cycle through players and create links in chain, stop 1 short
-              var i;
-              for (i=0; i<doc.data().players.length-1;i++)
-              {
-                  console.log("Iteration " + i + " within create links loop")
-                  // create a link in the chain
-                  db.collection("chain").doc(doc.data().players[i]).set({
-                      target: doc.data().players[i+1]
-                    })
-                    .then(function() {
-                      console.log("Success writing to chain");
-                    })
-                    .catch(function(error) {
-                      console.error("Error writing to chain", error);
-                    });
-
-                    // update player status to Active
-                    db.collection("players").doc(doc.data().players[i]).update({
-                      status: PLAYER_STATUS_ACTIVE
-                    })
-                    .then(function() {
-                      console.log("Players status update success.");
-                    })
-                    .catch(function(error) {
-                      console.error("Error player status update to db.", error);
-                    });
-
-
-              } // end for loop
-
-              // create the last link in the chain
-              db.collection("chain").doc(doc.data().players[i]).set({
-                  target: doc.data().players[0]
-              })
-              .then(function() {
-                console.log("Success last link");
-              })
-              .catch(function(error) {
-                console.error("Error last link", error);
-              });
-
-              // update player status to Active
-              db.collection("players").doc(doc.data().players[i]).update({
-                status: PLAYER_STATUS_ACTIVE
-              })
-              .then(function() {
-                console.log("Players status update success.");
-              })
-              .catch(function(error) {
-                console.error("Error player status update to db.", error);
-              });
-
-              deleteQueue();
-
-              // update active players Statistics
-
-              // Set game status to "Not Started"  ---------------------------------
-              // db.collection("gameData").doc("gameData").update({
-              //   statsActive: totalPlayers
-              // })
-              // .then(function() {
-              //   console.log("Updating active players stat success ----------------------");
-              // })
-              // .catch(function(error) {
-              //   console.error("Updating active players stat failed ---------------------", error);
-              // });
-
-              // Set game status to "Active"  ---------------------------------
-              db.collection("gameData").doc("gameData").update({
-                status: GAME_STATUS_ACTIVE,
-                statsActive: totalPlayers
-              })
-              .then(function() {
-                console.log("Set game status to Active and active players -----------------******----");
-              })
-              .catch(function(error) {
-                console.error("Set game status to Active and current players failed", error);
-              });
-
-              status = GAME_STATUS_ACTIVE;
-              document.getElementById("gameStatus").innerHTML = decodeGameStatus(GAME_STATUS_ACTIVE);
-              message.innerHTML = MESSAGE_TEXT_GAME_STARTED;
-              console.log("Last part of start game function -----------------");
-
-          }  // end if queueRef.get doc.exists
-          else {
-            console.log("Doc does not exist.");
-          }
-        }).catch(function(error) {
-          console.log("Error getting queue document:", error);
-          });
-
-  }  // end if game not started
-  else
-  {
-      // game already started
-      console.log("Can't start game. Status is " + decodeGameStatus(status));
-      message.innerHTML = MESSAGE_TEXT_CANT_START_GAME + decodeGameStatus(status) ;
-    }
-
-});   // end start game button listener
-
-// Start end game function -----------------------------------------
-
-endGameButton.addEventListener('click', function(e)
-{
-  console.log("End game function called");
-  resetInputBoxes();
-
-  status = GAME_STATUS_COMPLETED;
-  document.getElementById("gameStatus").innerHTML = decodeGameStatus(status);
-  message.innerHTML = GAME_STATUS_COMPLETED_TEXT;
-
-  // Set game status to "Completed"  ---------------------------------
-  db.collection("gameData").doc("gameData").update({
-    status: GAME_STATUS_COMPLETED
-  })
-  .then(function() {
-    console.log("Set game status to Completed.");
-  })
-  .catch(function(error) {
-    console.error("Set game status to Paused failed", error);
-  });
-
-
-  // update all players status to Game Over
-  db.collection("players").get().then(function(querySnapshot)
-  {
-      querySnapshot.forEach(function(doc)
-      {
-          // doc.data() is never undefined for query doc snapshots
-            console.log("Looping through all players, moving to Game Over Status " + doc.id);
-
-            var playerRef = db.collection("players").doc(doc.id);
-
-            playerRef.update({
-              status: PLAYER_STATUS_GAME_OVER
-            })
-            .then(function() {
-              console.log("Players status update success To Game Over.");
-              // display player name in the message board
-              // message.innerHTML = MESSAGE_TEXT_MOVE_WAITING + doc.id;
-            })
-            .catch(function(error) {
-              console.error("Error player status update to db.", error);
-            });
-
-      }); // end query snapshot for each player
-
-  });
-
-  deleteQueue();
-  deleteChain();
-
-});
-
-// Start addPlayer function ---------------------------------------
-
-addPlayerButton.addEventListener('click', function(e)
-{
-    if (status == GAME_STATUS_COMPLETED)
-    {
-        console.log("Can't add player, game is over.");
-        message.innerHTML = MESSAGE_TEXT_GAME_COMPLETED;
-        return;
-    }
-
-    console.log ("Start of Add Player ---------------------------");
-    getScreenData();
-
-    if ((id != "") && (name != ""))
-    {
-        // check if player already exists - create a reference to the document
-        var playerRef = db.collection("players").doc(id);
-
-        playerRef.get().then(function(doc)
-        {
-            if (doc.exists)
-            {
-                // player already exists, don't allow
-                console.log("Error - Player already exists.");
-                message.innerHTML = MESSAGE_TEXT_PLAYER_ALREADY_EXISTS;
-                return;
-            }
-
-            // add player to the players db --------------------
-            db.collection("players").doc(id).set({
-              status: (regType == REGISTERED_ASAP) ? PLAYER_STATUS_WAITING : PLAYER_STATUS_SCHEDULED,
-              owed: OWED_STARTER,
-              total: 0,
-              paid: 1,
-              name: name
-            })
-            .then(function() {
-              console.log("Add player success. ID = " + id + " Name is " + name);
-              message.innerHTML = MESSAGE_TEXT_ADD_PLAYER + id + " Name is " + name;
-            })
-            .catch(function(error) {
-              console.error("Add player failed.", error);
-            });
-
-            // add 1 to total players in game db - zzz
-            gameDataRef.get().then(function(doc)
-            {
-                if (doc.exists)
-                {
-                    console.log("Game Data exists, increasing total players by 1");
-                    // set initial message and data
-
-                    statsTotal = doc.data().statsTotal;
-
-                    // increasing total players by 1  ---------------------------------
-                    db.collection("gameData").doc("gameData").update({
-                      statsTotal: statsTotal + 1
-                    })
-                    .then(function() {
-                      console.log("Increased total players by 1");
-                    })
-                    .catch(function(error) {
-                      console.error("Set game status to Not Started failed", error);
-                    });
-                } // error checking,
-            });
-
-
-            // add player to the waiting queue or scheduled queue -------------
-
-            var whichQueue;
-            if (regType == REGISTERED_ASAP)   // add to waiting queue
-            {
-                whichQueue = "waiting";
-                console.log("Which queue set to waiting");
-            }
-            else
-            {
-              whichQueue = "scheduled";
-              console.log("Which queue set to scheduled");
-            }
-
-            // First get queue, then push new player, then write to db
-            var tempQueue = new Array;
-
-            // get the waiting or schedule queue and add this player
-            var queueRef = db.collection("queues").doc(whichQueue);
-            queueRef.get().then(function(doc)
-            {
-              if (doc.exists)
-              {
-                  tempQueue = doc.data().players; // save queue locally
-                  console.log("Within Add Player - Queue from db is " + doc.data().players);
-
-                  // add new player to local queue
-                  tempQueue.push(id);
-
-                  // update db queue with local queue
-                  db.collection("queues").doc(whichQueue).set({
-                      players: tempQueue
-                  })
-                  .then(function() {
-                    console.log("db setting waiting queue players array success");
-                  })
-                  .catch(function(error) {
-                    console.error("db setting waiting queue players array failed", error);
-                  });
-
-              }  // end if doc.exists
-              else
-              {
-                console.log("Error Queue Doc doesn't exist - Add Player");
-              }
-            }).catch(function(error) {
-                console.log("Error getting queue document - Add Player:", error);
-            });
-
-          // reset input boxes
-          resetInputBoxes();
-
-        }); // player ref get, check if player exists
-
-    }
-    else {
-      console.log("Invalid screen data - add player button");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Add Player.";
-    }
-
-});   // end function add player button listener  ---------------------------
-
-// ----------- Start approve button listener -------------------------------
-
-approveButton.addEventListener('click', function(e)
-{
-    if (status == GAME_STATUS_COMPLETED)
-    {
-        console.log("Can't approve player, game is over.");
-        message.innerHTML = MESSAGE_TEXT_GAME_COMPLETED;
-        return;
-    }
-
-    getScreenData();
-
-    if (id != "")   // only process if good screen data entered
-    {
-        /// create a reference to the player document
-        var playerRef = db.collection("players").doc(id);
-
-        var tempQueue = new Array;
-
-        playerRef.get().then(function(doc)
-        {
-            if (doc.exists)
-            {
-                  // Only approve if inactive or registered
-                  if ((doc.data().status == PLAYER_STATUS_INACTIVE) || (doc.data().status == PLAYER_STATUS_REGISTERED))
-                  {
-                      resetInputBoxes();
-
-                      // set player status to waiting
-                      playerRef.update({
-                        status: (regType == REGISTERED_ASAP) ? PLAYER_STATUS_WAITING : PLAYER_STATUS_SCHEDULED
-                      })
-                      .then(function() {
-                        console.log("Players status update success.  " + id + " moved from inactive or registered to waiting.");
-                        // display player name in the message board
-                        message.innerHTML = MESSAGE_TEXT_MOVE_WAITING + id;
-                      })
-                      .catch(function(error) {
-                        console.error("Error player status update to db.", error);
-                      });
-                  } // end if
-                  else
-                  {
-                    console.log("Player was not inactive or registered, can't approve.");
-                    message.innerHTML = MESSAGE_TEXT_PLAYER_CANT_ATIVATE + id;
-                    return;
-                  }
-
-                  var whichQueue = (regType == REGISTERED_ASAP) ? "waiting" : "scheduled";
-
-                  // put player in queue - create temp array, get current queue and copy to temp array,  add player to temp array, overwrite temp array to db queue
-                  // get the waiting queue
-                  var queueRef = db.collection("queues").doc(whichQueue);
-                  queueRef.get().then(function(doc)
-                  {
-                    if (doc.exists)
-                    {
-                        tempQueue = doc.data().players; // save queue locally
-                        console.log("Queue from db is " + doc.data().players);
-                        console.log("Local Queue inside is " + tempQueue);
-
-                        // add new player to local queue
-                        tempQueue.push(id);
-
-                        console.log("Local Queue outside 2 is " + tempQueue);
-
-                        // update db queue with local queue
-                        db.collection("queues").doc(whichQueue).set({
-                            players: tempQueue
-                          })
-                          .then(function() {
-                            console.log("db setting waiting queue players array success");
-                          })
-                          .catch(function(error) {
-                            console.error("db setting waiting queue players array failed", error);
-                          });
-
-                    } else
-                    {
-                      console.log("Error queue Doc doesnt exists");
-                    }
-                  }).catch(function(error) {
-                      console.log("Error getting queue document:", error);
-                  });  // end queue.Ref .get
-
-            }   // end if doc.exists for player ref
-            else
-            {
-                console.log("Player id = " + id + "not found");
-                message.innerHTML = MESSAGE_TEXT_PLAYER_DOESNT_EXIST + id;
-            }
-        }); // end player ref .get
-
-    }   // end if id not blank
     else
     {
-        console.log("Invalid screen data - approve player");
-        message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Approve Player." ;
+      console.log("Setting id = " + tempId);
+      playerId = tempId;
     }
 
-});  // end approve button listener
+    name = document.getElementById("nameInputBox").value;
 
-// ----------- Start approve all button listener  ------------------------
+}
 
-approveAllButton.addEventListener('click', function(e)
+// --------------------------------------------------------------
+// Register with game
+
+function registerButtonClick()
 {
-  if (status == GAME_STATUS_COMPLETED)
-  {
-      console.log("Can't approve all, game is over.");
-      message.innerHTML = MESSAGE_TEXT_GAME_COMPLETED;
-      return;
-  }
-
-  // query players db for registered status
-  // var tempPlayersRef = db.collection("players");
-  var query = db.collection("players").where("status", "==", PLAYER_STATUS_REGISTERED);
-
-  query.get().then(function(querySnapshot)
-  {
-      var tempQueue = new Array;
-
-      // get current queue and copy to temp queue
-      // get the waiting queue
-      var queueRef = db.collection("queues").doc("waiting");
-      queueRef.get().then(function(doc)
-      {
+    // check if game is available to register
+    // get game status and update field,  create a reference to the document
+    var gameDataRef = db.collection("gameData").doc("gameData");
+    gameDataRef.get().then(function(doc)
+    {
         if (doc.exists)
         {
-            tempQueue = doc.data().players; // save queue locally
-
-            querySnapshot.forEach(function(doc)
+            if (doc.data().status == GAME_STATUS_COMPLETED)
             {
-                // doc.data() is never undefined for query doc snapshots
-                console.log("Looping through registered players, moving to waiting - " + doc.id + " Status is " + doc.data().status);
-                tempQueue.push(doc.id);
+              // Can't register, game already over
+              console.log("Can't register, game already over.");
+              postMessage(MESSAGE_TEXT_CANT_REGISTER_GAME_OVER);
+            }
+            else  // move forward with registration
+            {
+                // register player
 
-                var playerRef = db.collection("players").doc(doc.id);
+                    getScreenData();
 
-                playerRef.update({
-                  status: PLAYER_STATUS_WAITING
-                })
-                .then(function() {
-                  console.log("Players status update success.  " + doc.id + " moved from registered to waiting.");
-                  // display player name in the message board
-                  message.innerHTML = MESSAGE_TEXT_MOVE_WAITING + doc.id;
-                })
-                .catch(function(error) {
-                  console.error("Error player status update to db.", error);
-                });
+                    if (name == "")
+                    {
+                      console.log("Blank name entered in name input box.");
+                      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name is invalid.");
+                      return;
+                    }
 
-            }); // end query snapshot for each registered player
+                    // continue if name entered
+                    var tempId = "";
+                    var i;
 
-            // write temp queue to db
-            // update db queue with local queue
-            db.collection("queues").doc("waiting").set({
-                players: tempQueue
-              })
-              .then(function() {
-                console.log("db setting waiting queue players array success");
-              })
-              .catch(function(error) {
-                console.error("db setting waiting queue players array failed", error);
-              });
+                    // loop through, creating 1 random digit at a time
+                    for (i=0; i<PLAYER_ID_LENGTH; i++)
+                    {
+                      tempId += String(Math.floor(Math.random() * 10));
+                    }
 
-        } // end doc exists
+                    tempId = String(tempId);
+                    console.log("Temp id created is " + tempId + " length is " + tempId.length);
 
-      });   // end get on queue
+                    // check if this id is already in use - if yes, reject registration request
+                    var playerRef = db.collection("players").doc(tempId);
 
-  }); // end query.get
+                    playerRef.get().then(function(doc)
+                    {
+                        console.log("Player ref on temp id executed");
 
-}); // end approve all button listener
+                        if (doc.exists)
+                        {
+                            // player already exists, don't allow
+                            console.log("Error - Player already exists.");
+                            postMessage(MESSAGE_TEXT_PLAYER_ALREADY_EXISTS);
+                            postError(tempId, MESSAGE_TEXT_PLAYER_ALREADY_EXISTS);
+                            return;
+                        }
+
+                        console.log("Player doesn't exist.  About to add player to db.  Name is " + name);
+
+                        // Check if game is not started, if yes, then put in Register ASAP, else read choice from radio button
+                        if (gameStatus == GAME_STATUS_NOT_STARTED)
+                        {
+                            console.log("Game status is 'not started'");
+                            myRegistrationType = REGISTERED_ASAP;
+                        }
+                        else
+                        {
+                            console.log("Game status is not - 'not started'");
+                            // get the choice from the screen
+                            var myForm = document.getElementById("registrationTypes");
+
+                            if (myForm.registration[0].checked == true)
+                            {
+                                myRegistrationType = REGISTERED_ASAP;
+                            }
+                            else
+                            {
+                                myRegistrationType = REGISTERED_SCHEDULED;
+                            }
+
+                        } // end else
+
+                        // add player to the players db --------------------
+                        db.collection("players").doc(tempId).set({
+                          status: PLAYER_STATUS_REGISTERED,
+                          owed: OWED_STARTER,
+                          total: 0,
+                          paid: 0,
+                          pictureName: "",
+                          registrationType: myRegistrationType,
+                          scheduledTime: nextScheduledStart,  // this will be ignored if registered ASAP
+                          name: name,
+                          bombAlerted: 0
+                        })
+                        .then(function() {
+                          console.log("Register player success. ID = " + tempId + " Name is " + name);
+                          postMessage(MESSAGE_TEXT_REGISTER_PLAYER);
+                          if (myRegistrationType == REGISTERED_ASAP)
+                            postEvent(EVENT_TYPE_PLAYER_REGISTER_SUCCESS_ASAP, tempId);
+                          else
+                            postEvent(EVENT_TYPE_PLAYER_REGISTER_SUCCESS_SCHED, tempId);
+
+                          playerId = tempId;
+                          status = PLAYER_STATUS_REGISTERED;
+                          renderGame(PLAYER_STATUS_REGISTERED);
+                        })
+                        .catch(function(error) {
+                          console.error("Register player failed.", error);
+                        });
+
+                        // add 1 to total players in game db - zzz
+                        gameDataRef.get().then(function(doc)
+                        {
+                            if (doc.exists)
+                            {
+                                console.log("Game Data exists, increasing total players by 1");
+                                // set initial message and data
+
+                                statsTotal = doc.data().statsTotal;
+
+                                // increasing total players by 1  ---------------------------------
+                                db.collection("gameData").doc("gameData").update({
+                                  statsTotal: statsTotal+1
+                                })
+                                .then(function() {
+                                  console.log("Increased total players by 1");
+                                })
+                                .catch(function(error) {
+                                  console.error("Set game status to Not Started failed", error);
+                                });
+                            } // error checking,
+                        });
 
 
-//  end approve all button listener ------------------------
+                    }); // player ref get, check if player exists
 
-// ----------- Begin Volunteer function - scheduled start --------
+            }   // end else - move forwared with registration
 
-volunteerButton.addEventListener('click', function(e)
+        } // end if doc exists - needs error checking
+
+      }).catch(function(error) {
+        console.log("Error getting gameRefData.get() document:", error);
+    });
+
+}
+
+// --------------------------------------------------------------
+// Log into the game
+// Allow player to log in even when game is over - check stats
+
+function loginButtonClick()
 {
-      // flip volunteerNeeded in db to true
+    targetId = "";
+    getScreenData();
 
-      // flip field on db to true  ---------------------------------
-      db.collection("gameData").doc("gameData").update({
-        volunteerNeeded: true
-      })
-      .then(function() {
-        console.log("Updated game data - volunteer needed to true");
-      })
-      .catch(function(error) {
-        console.error("Updated game data - volunteer needed to true - failed", error);
-      });
+    // clear out old messages
+    messages = new Array;
 
-});
+    // get game status here and display on screen
+    var gameDataRef = db.collection("gameData").doc("gameData");
 
-// end volunteer button listener  -------------------------------
+    gameDataRef.get().then(function(doc)
+    {
+      if (doc.exists)
+      {
+          gameStatus = doc.data().status;
+          console.log("Login clicked, volunteer needed is " + doc.data().volunteerNeeded);
+          volunteerNeeded = doc.data().volunteerNeeded;
 
+          if (volunteerNeeded == true)
+          {
+              console.log("Volunteer Needed is true");
+              postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
+              renderGame(status);
+          }
 
-// ----------- Begin Volunteer function - scheduled start --------
+          // update needed here or nearby - need to create a listener on game status
+          // document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);  // yyy
 
-markPaidButton.addEventListener('click', function(e)
-{
+          console.log("Game status is " + decodeGameStatus(gameStatus));
 
-  console.log("Mark Paid called");
+          // // check if volunteer volunteer - // this should be moved - yyy maybe
+          // if (doc.data().volunteerNeeded == true)
+          // {
+          //   // document.getElementById("volunteerButton").style.visibility = "visible";  // add this button to the end of the button bar
+          //
+          //   buttonStripRegion += volunteerButtonHTML;
+          //
+          //   myBody.innerHTML = loginRegion + messageRegion + buildPlayerDataRegion() + activePlayerDataRegion + buttonStripRegion + pictureAreaRegion;
+          //
+          //   postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
+          // }
+          // else
+          // {
+          //   // document.getElementById("volunteerButton").style.visibility = "hidden";
+          // }
 
-  getScreenData();
+      }
+    });
 
-  // create a reference to the document
-  var playerRef = db.collection("players").doc(id);
+  // // create a reference to the document
+  var playerRef = db.collection("players").doc(playerId);
 
   playerRef.get().then(function(doc)
   {
     if (doc.exists)
     {
+        console.log("Successful log in");
 
-        console.log("Player ref exists in mark paid.");
+        // set global vars
+        status = doc.data().status;
+        console.log("Setting global status var to " + doc.data().status + " in log in.");
+        name = doc.data().name;
+        myPicFileName = doc.data().pictureName;
+        owed = doc.data().owed;
+        total = doc.data().total;
+        loggedIn = true;
+        bombAlerted = doc.data().bombAlerted;
 
+        if ((bombDropped == 1) && (bombAlerted == 0))
+        {
+            postMessage(MESSAGE_TEXT_BOMB_DROPPED);
 
-            // update markPaid
+            // update player record to alerted yes
             playerRef.update({
-              paid: 1
+              bombAlerted: 1
             })
             .then(function() {
-              console.log("Players update success mark paid.");
-              message.innerHTML = MESSAGE_TEXT_MARK_PAID;
+              console.log("Players status update success - waiting buy back in.");
             })
             .catch(function(error) {
-              console.error("Error player update to db mark paid.", error);
+              console.error("Error player status update to db - waiting buy back in", error);
             });
 
-    } // player doc exists
-    else {
-      console.log("Player doc doesnt exist mark paid.");
-      message.innerHTML = MESSAGE_TEXT_PLAYER_DOESNT_EXIST + id;
+        }
+
+        loginRegion = "";
+
+        // ****************** Subscribe *****************************************************************************
+        // create listener on my player record, change in status is important **************  Subscribe *************
+        playerUnsubscribe = playerRef.onSnapshot(function(doc)
+        {
+              // put workaround back in - removed Workaround code with unsubscribe working - Only handle a call if player name is mine, not an old log in
+              if ((doc.exists) && (doc.data().name == name))
+              //if (doc.exists)
+              {
+                  console.log("Listener snapshot called player doc exists name is: " + doc.data().name + " - My name is " + name + "- current status is " + decodePlayerStatus(status) + " - incoming status is " + decodePlayerStatus(doc.data().status));
+
+                  // update global var in case admin uploaded pic
+                  if (myPicFileName != doc.data().pictureName)
+                  {
+                    console.log("My picture file name changed.");
+                    myPicFileName = doc.data().pictureName;
+                  }
+
+                  if (status == PLAYER_STATUS_GAME_OVER)
+                  {
+                    // set player status on screen to Game Over
+                    // document.getElementById("myStatus").innerHTML = decodePlayerStatus(status);  // yyy
+                  }
+                  else  // show the status coming in from subscribe
+                  {
+                    // document.getElementById("myStatus").innerHTML = decodePlayerStatus(doc.data().status);  // yyy
+                  }
+
+                  // update owed if nec
+                  if (owed != doc.data().owed)
+                  {
+                    postMessage(MESSAGE_TEXT_BOUNTY_OWED_CHANGE);
+                    owed = doc.data().owed;
+                    total = doc.data().total;
+                    console.log("Change in owed found - new owed is " + owed );
+                  }
+
+                  // Either I was assassinated or I volunteered to go to inactive
+                  if ((status == PLAYER_STATUS_ACTIVE) && (doc.data().status == PLAYER_STATUS_INACTIVE))
+                  {
+                      // assassinated
+                      if (iVolunteered == false)
+                      {
+                        console.log(MESSAGE_TEXT_ASSASSINATED);
+                        postMessage(MESSAGE_TEXT_ASSASSINATED);
+                      }
+                      else  // I did volunteer
+                      {
+                        console.log(MESSAGE_TEXT_VOLUNTEERED);
+                        postMessage(MESSAGE_TEXT_VOLUNTEERED);
+                        iVolunteered = false;   // flip back to false
+                      }
+
+                      status = PLAYER_STATUS_INACTIVE;
+                      // targetId = "";
+                      targetName = "";
+                      nameOfTargetsTarget = "";
+
+                      // decreasing active players by 1  --------------------------------- yyy - need to test this, double count
+                      db.collection("gameData").doc("gameData").update({
+                        statsActive: statsActive - 1
+                      })
+                      .then(function() {
+                        console.log("Decr stats active by 1");
+                      })
+                      .catch(function(error) {
+                        console.error("Decr stats active failed", error);
+                      });
+
+                      renderGame(PLAYER_STATUS_INACTIVE);
+
+                      return;
+                  }
+
+
+                  // I was moved from waiting or scheduled queue into the game
+                  if (((status == PLAYER_STATUS_WAITING) || (status == PLAYER_STATUS_SCHEDULED)) && (doc.data().status == PLAYER_STATUS_ACTIVE))
+                  {
+                      console.log("Player change subscribe called - going from waiting or scheduled to active. global id is " + playerId);
+
+                      postMessage(MESSAGE_TEXT_ACTIVATED);
+                      status = PLAYER_STATUS_ACTIVE;
+
+                      // create a reference to my link document in the chain first
+                      var myLinkRef = db.collection("chain").doc(playerId);
+
+                      myLinkRef.get().then(function(doc)
+                      {
+                        if (doc.exists)
+                        {
+                            console.log("Moved to active - Right after myLinkRef.get then doc.exists");
+
+                            // ************************************************************************************
+                            // subscribe on the new link that was created ****************************************
+                            // 1 of 2 places in the code - Player updated to active in listener
+                            linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
+                            {
+                                  // console.log("My link listener called on the way in - within Log In.");
+                                  if ((doc.exists) && (Number(doc.id) == Number(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                                  //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                                  {
+                                      console.log("My link listener called - Doc exists - within waiting to queue change");
+
+                                      targetId = doc.data().target;
+
+                                      renderGame(PLAYER_STATUS_ACTIVE);
+
+                                  }   // end if doc exists
+                                  else {
+                                    // my link doesn't exist
+                                  }
+                            }); // end myLinkRef - subscribe
+
+                            // end link subscribe ***********************************************************************
+
+                            console.log("Player change subscribe called - My Link exists - going from waiting to active.");
+
+
+                        } // end if doc exists on search for my link record
+                        else
+                        {
+                            postMessage(MESSAGE_TEXT_FATAL_ERROR);
+                            console.log("My link doc doesn't exist within player data subscribe:", error);
+                            // my link record doesn't exist
+                        } // end else my link doc doesn't exist
+
+                      }); // end .get on my link
+                      //  error checking here
+
+                      return;
+                  } // end if - moved from queue into game
+
+                  // Only update for Registered the first time, ignore afterwards
+                  if ((doc.data().status == PLAYER_STATUS_REGISTERED) && (status != PLAYER_STATUS_REGISTERED))
+                  {
+                      console.log("Player is registered - Subscriber called.");
+                      postMessage(MESSAGE_TEXT_REGISTER_PLAYER);
+                      status = PLAYER_STATUS_REGISTERED;
+                      renderGame(PLAYER_STATUS_REGISTERED);
+                      return;
+                  }
+
+                  // waiting to waiting - ignore
+                  if ( (status == PLAYER_STATUS_WAITING) && doc.data().status == PLAYER_STATUS_WAITING)
+                  {
+                      // ignore, no status change zzz - this is one of those where maybe I can filter on the change type
+                      console.log("Maybe zzz this gets called on the initial creation of the listener?");
+                      console.log("Render game about to be called, owed is " + owed);
+                      renderGame(PLAYER_STATUS_WAITING);
+                      return;
+                  }
+
+                  // Just waiting
+                  if (doc.data().status == PLAYER_STATUS_WAITING)
+                  {
+                      console.log(MESSAGE_TEXT_WAITING);
+                      status = PLAYER_STATUS_WAITING;
+                      console.log("Render game about to be called, owed is " + owed);
+                      renderGame(PLAYER_STATUS_WAITING);
+                      return;
+                  }
+
+                  // Only show scheduled message if changed
+                  if ((doc.data().status == PLAYER_STATUS_SCHEDULED) && (status != PLAYER_STATUS_SCHEDULED))
+                  {
+                      status = PLAYER_STATUS_SCHEDULED;
+                      renderGame(PLAYER_STATUS_SCHEDULED);
+                      return;
+                  }
+
+                  console.log("Render game about to be called, owed is " + owed);
+                  renderGame(status);
+
+              }  // end doc exists - player subscribe
+              else
+              {
+                console.log("Player subscribe called but no doc - Must have been deleted.");
+
+                if (!doc.exists)
+                  logoffUser();
+
+              }
+
+        });  // ******** end subscribe on my player record  *********************************************************
+
+        // Display success in message area
+        postMessage(MESSAGE_TEXT_LOGIN);
+        postEvent(EVENT_TYPE_PLAYER_LOGIN, MESSAGE_TEXT_LOGIN + playerId);
+
+        // check my status, retrieve my target's name and pic if I am Active
+        if (status == PLAYER_STATUS_ACTIVE)
+        {
+
+            // create a reference to my link document in the chain first
+            myLinkRef = db.collection("chain").doc(playerId);
+
+            myLinkRef.get().then(function(doc)
+            {
+              if (doc.exists)
+              {
+                  targetId = doc.data().target;
+                  console.log("Doc exists for me - Login - Active status - My target is " + targetId);
+
+                  // ************************* Subscribe ************************************
+                  // create Listener to my link reference ******** Subscribe ************************************
+                  // 2 of 2 places in code for this subscribe.  This one is Log In and Active.
+                  linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
+                  {
+                    if ((doc.exists) && (Number(doc.id) == Number(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                    //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                      {
+                          console.log("My link listener called - Doc exists - My id is " + playerId + " Subscriber id is " + doc.id);
+
+                          // check here if I am now in a paused game scenario
+                          if (playerId == doc.data().target)
+                          {
+                              // go into paused mode
+                              console.log("Game Paused - Only 1 player active. My Link Subscriber called and my target is me.");
+                              postMessage(GAME_STATUS_PAUSED_TEXT);
+
+                              // Set game status to "Paused"  ---------------------------------
+                              db.collection("gameData").doc("gameData").update({
+                                status: GAME_STATUS_PAUSED
+                              })
+                              .then(function() {
+                                console.log("Set game status to Paused");
+                              })
+                              .catch(function(error) {
+                                console.error("Set game status to Paused failed", error);
+                              });
+
+                          }
+                          else // continue, not in paused mode
+                          {
+                              targetId = doc.data().target;
+
+                              renderGame(PLAYER_STATUS_ACTIVE);
+                              return;
+
+                          }   // end else, not a pause scenario
+
+                      }   // end if doc.exists - myLink subscriber
+                      else {
+                        // my link record doesn't exist - must have been deleted
+                        console.log("My link doesn't exist - Likely deleted");
+                      }
+
+                  }); // end myLinkRef onSnapshot
+
+                  renderGame(PLAYER_STATUS_ACTIVE);
+
+              } // end if doc exists on search for my link record
+              else {
+                // my link record doesn't exist although I am active - error scenario
+              }
+
+            }); // end .get on my link
+            //  error checking here
+
+        }   // end if my status was active
+        else {
+          console.log("Status is not active. It is " + decodePlayerStatus(doc.data().status));
+        }
+
+        renderGame(status);
+
+    }   // end if doc exists
+    else
+    {
+      postMessage(MESSAGE_TEXT_LOGIN_FAILED + playerId);
+      postError(playerId, MESSAGE_TEXT_LOGIN_FAILED + playerId);
+      renderGame(PLAYER_STATUS_LOGGED_OFF);
     }
 
   }).catch(function(error) {
-    console.log("Error getting playerRef.get() document mark paid :", error);
-    message.innerHTML = MESSAGE_TEXT_ERROR_GETTING_PLAYER_REF;
+    console.log("Error getting adminsRef.get() document:", error);
     });
 
-});
 
-// end volunteer button listener  -------------------------------
+}
 
-payBountiesButton.addEventListener('click', function(e)
-{
 
-    getScreenData();
-//
-// alert(document.getElementById("payBountiesNumber").value == 0);
-// alert(document.getElementById("payBountiesNumber").value == "");
-// alert(document.getElementById("payBountiesNumber").innerHTML == "");
-//
-
-    // check if screen data is valid - id must not be blank, bountied field must not be blank and must be an integer > 0
-    if (
-        (id == "") ||
-        (isNaN(Number(document.getElementById("payBountiesNumber").value)) == true) ||
-        (document.getElementById("payBountiesNumber").value <= 0) ||
-        (Number.isInteger(Number(document.getElementById("payBountiesNumber").value)) == false)
-      )
-    {
-      console.log("Invalid screen data in pay bounties.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Pay Bounties.";
-      return;
-    }
-
-    // create a reference to the document
-    var playerRef = db.collection("players").doc(id);
-
-    playerRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-
-        // error checking needed here, shouldn't pay more bounties than necessary
-          console.log("Player ref exists in pay bounties.  Owed is " + doc.data().owed + "  paying amount is " + Number(document.getElementById("payBountiesNumber").value));
-          var tempBounties;
-
-          // check if numbers valid
-          if ( Number(document.getElementById("payBountiesNumber").value) > doc.data().owed )
-          {
-              // bad data
-              console.log("Bad bounty data.");
-              resetInputBoxes();
-              message.innerHTML = MESSAGE_TEXT_INVALID_BOUNTY_DATA + doc.data().owed;
-          }
-          else
-          {
-              tempBounties = doc.data().owed - Number(document.getElementById("payBountiesNumber").value);
-              resetInputBoxes();
-
-              // good bounty data
-              // update payers bounties - subtract number entered by admin
-              playerRef.update({
-                owed: tempBounties
-              })
-              .then(function() {
-                console.log("Players update success owed.");
-                message.innerHTML = MESSAGE_TEXT_BOUNTIES_PAID + tempBounties;
-              })
-              .catch(function(error) {
-                console.error("Error player update to db owed.", error);
-              });
-          } // end else bounty daeta
-
-      } // player doc exists
-      else {
-        console.log("Player doc doesnt exist owed.");
-        message.innerHTML = MESSAGE_TEXT_PLAYER_DOESNT_EXIST + id;
-      }
-
-    }).catch(function(error) {
-      console.log("Error getting playerRef.get() document owed :", error);
-      message.innerHTML = MESSAGE_TEXT_ERROR_GETTING_PLAYER_REF;
-      });
-
-});
-
-// end pay bounties button listener ------------------------------------------------------------------------
-
-checkBountiesButton.addEventListener('click', function(e)
-{
-
-    getScreenData();
-
-    // check if screen data is valid - id must not be blank
-    if (id == "")
-    {
-      console.log("Invalid screen data in check bounties.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Check Bounties.";
-      return;
-    }
-
-    // create a reference to the document
-    var playerRef = db.collection("players").doc(id);
-
-    playerRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-          console.log("Player ref exists in check bounties.  Owed is " + doc.data().owed);
-          message.innerHTML = "Player " + id + " is owed " + doc.data().owed + " bount" + ((doc.data().owed == 1) ? "y." : "ies.");
-      } // player doc exists
-      else {
-        console.log("Player doc doesnt exist owed.");
-        message.innerHTML = MESSAGE_TEXT_PLAYER_DOESNT_EXIST + id;
-      }
-
-    }).catch(function(error) {
-      console.log("Error getting playerRef.get() document owed :", error);
-      message.innerHTML = MESSAGE_TEXT_ERROR_GETTING_PLAYER_REF;
-      });
-
-});
-
-// end check bounties button listener ------------------------------------------------------------------------
-
-// ------------------------------------------------------------------------
-
-bombButton.addEventListener('click', function (e)
-{
-    console.log("Bomb called");
-
-    // Only allow bomb if game is active
-    if (status == GAME_STATUS_ACTIVE)
-    {
-        var tempChain = new Array;
-        var i;
-
-        resetInputBoxes();
-
-        message.innerHTML = MESSAGE_TEXT_BOMB_DROPPED;
-
-        // loop through chain, building temp chain
-        var chainRef = db.collection("chain");
-        var query = chainRef.get().then(snapshot =>
-        {
-            snapshot.forEach(doc => {
-                console.log("Looping through chain in bomb - " + doc.id + " building temp array ");
-                tempChain.push(doc.id);
-            });
-
-            console.log("Now getting queue in bomb");
-            var tempQueue = new Array; // save ids in queue so I can update their status after link created - previous error was status flipped first before link created
-
-            // get queue add to temp chain
-            var queueRef = db.collection("queues").doc("waiting");
-            queueRef.get().then(function(doc)
-            {
-                if (doc.exists) // waiting queue doc exists
-                {
-                    console.log("Waiting queue Doc exists - bomb - players length is " + doc.data().players.length);
-                    for (i=0; i<doc.data().players.length; i++)
-                    {
-                        console.log("Getting queue players in bomb");
-                        tempChain.push(doc.data().players[i]);
-                        tempQueue.push(doc.data().players[i]);
-                    } // end for loop
-
-                    deleteQueue();
-
-                    // shuffle players in tempChain
-                    for (i=0;i<((tempChain.length)*50);i++)
-                    {
-                        console.log("Shuffling tempChain - bomb");
-                        var index1 = Math.floor((Math.random() * tempChain.length));
-                        // console.log("Index 1 is " + index1);
-                        var index2 = Math.floor((Math.random() * tempChain.length));
-                        // console.log("Index 2 is " + index2);
-                        var tempPlayer = tempChain[index1];
-                        tempChain[index1] = tempChain[index2];
-                        tempChain[index2] = tempPlayer;
-                    }
-
-                    // create new chain
-                    var chainRef = db.collection("chain");
-
-                    // cycle through tempChain - 1
-                    for (i=0; i<tempChain.length-1;i++)
-                    {
-                        // add link in the chain
-                        db.collection("chain").doc(tempChain[i]).set({
-                          target: tempChain[i+1]
-                        })
-                        .then(function() {
-                          console.log("Success writing to chain");
-                        })
-                        .catch(function(error) {
-                          console.error("Error writing to chain", error);
-                        });
-
-                        var j;
-                        // if this player was in the tempQueue, then flip status to active
-                        for (j=0; j<tempQueue.length; j++)
-                        {
-                            if (tempQueue[j] == tempChain[i])
-                            {
-                              // update player status to Active
-                              db.collection("players").doc(tempQueue[j]).update({
-                                status: PLAYER_STATUS_ACTIVE
-                              })
-                              .then(function() {
-                                console.log("Players status update success.");
-                              })
-                              .catch(function(error) {
-                                console.error("Error player status update to db.", error);
-                              });
-                            }
-                        } // end for loop through temp q
-
-                    } // end for loop - temp chain
-
-                    // add last link in the chain
-                    db.collection("chain").doc(tempChain[i]).set({
-                      target: tempChain[0]
-                    })
-                    .then(function() {
-                      console.log("Success writing to chain last link");
-                    })
-                    .catch(function(error) {
-                      console.error("Error writing to chain last link", error);
-                    });
-
-                    var j;
-                    // if this last player was in the tempQueue, then flip status to active
-                    for (j=0; j<tempQueue.length; j++)
-                    {
-                        if (tempQueue[j] == tempChain[i])
-                        {
-                          // update player status to Active
-                          db.collection("players").doc(tempQueue[j]).update({
-                            status: PLAYER_STATUS_ACTIVE
-                          })
-                          .then(function() {
-                            console.log("Players status update success.");
-                          })
-                          .catch(function(error) {
-                            console.error("Error player status update to db.", error);
-                          });
-                        }   // end if tempqueue
-
-                    } // end for loop temp queue
-
-                } // end if waiting queue exists
-                else {
-                  // no queue error checking
-                }
-
-            }); // end queRef.get
-
-        }); // end chainRef.get
-
-    } // if game status
-    else {
-      // wrong status
-      console.log("Can't drop bomb unless game is active status");
-      message.innerHTML = MESSAGE_TEXT_INVALID_BOMB;
-    }
-
-}); // end bomb button listener
-
-// ------------------  Pic functions ------------------------
-
-uploadPlayerPictureButton.addEventListener('click', function (e)
-{
-    getScreenData();
-
-    if (id != "")
-    {
-        var playerPicFileName;
-
-        var fileChosen = document.getElementById("playerPictureInput");
-        var curFiles = fileChosen.files;
-
-        if(curFiles.length === 1)
-        {
-            console.log("1 file chosen");
-
-            // get player reference to update picture field
-            playerPicFileName = curFiles[0].name;   // save file name to temp var
-
-            var playerRef = db.collection("players").doc(id);
-            playerRef.get().then(function(doc)
-            {
-              if (doc.exists)
-              {
-                    // update player picture name field
-                    playerRef.update({
-                      pictureName: playerPicFileName
-                    })
-                    .then(function() {
-                      console.log("Players pic name update success");
-                    })
-                    .catch(function(error) {
-                      console.error("Error player pic name update", error);
-                    });
-              } // end if player doc exists - need error checking
-
-            });
-
-            var fullPath = String(id) + "/" + playerPicFileName;
-
-            // 'images/mountains.jpg'
-
-            // Create a reference
-            var myFileRef = storageRef.child(fullPath);
-            // var metadata = {
-            //   contentType: 'image/jpeg',
-            // };
-
-            // Upload file and metadata to the object 'images/mountains.jpg'
-            var uploadTask = myFileRef.put(curFiles[0]);
-
-            message.innerHTML = MESSAGE_TEXT_UPLOAD_PIC_SUCCESS;
-            document.getElementById("playerPicture").src = "";
-
-            // error check the upload and monitor progress
-
-        } // end if 1 file chosen
-        else {
-          message.innerHTML = MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE;
-          console.log("You must choose 1 file");
-        }
-
-        resetInputBoxes();
-
-    } // end if id != ""
-    else {
-      console.log("Invalid screen data - add player picture.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Add Player Picture.";
-    }
-
-});
-
-// ------------------------------------------------------------------
-
-viewPlayerPictureButton.addEventListener('click', function (e)
-{
-      getScreenData();
-
-      if (id != "")
-      {
-          // get player ref, retrieve picture name
-          var playerRef = db.collection("players").doc(id);
-          playerRef.get().then(function(doc)
-          {
-              if (doc.exists)
-              {
-                  var playerPictureRef = storageRef.child(String(id) + "/" + doc.data().pictureName);
-
-                  playerPictureRef.getDownloadURL().then(function(url)
-                  {
-                    console.log("getDownloadURL worked");
-
-                    var playerPic = document.getElementById("playerPicture");
-                    playerPic.src = url;
-
-                    message.innerHTML = MESSAGE_TEXT_VIEW_PIC_SUCCESS;
-
-                  }).catch(function(error)
-                    {
-                      // A full list of error codes is available at
-                      // https://firebase.google.com/docs/storage/web/handle-errors
-                      switch (error.code)
-                      {
-                        case 'storage/object-not-found':
-                          console.log("File not found");
-                          message.innerHTML = MESSAGE_TEXT_PICTURE_NOT_FOUND + id;
-                          document.getElementById("playerPicture").src = "";
-                          // File doesn't exist
-                          break;
-
-                        case 'storage/unauthorized':
-                          // User doesn't have permission to access the object
-                          console.log("No permissions");
-                          break;
-
-                        case 'storage/canceled':
-                          console.log("Storage cancelled");
-                          // User canceled the upload
-                          break;
-
-                        case 'storage/unknown':
-                          console.log("Unknown error");
-                          // Unknown error occurred, inspect the server response
-                          break;
-                      // Handle any errors
-                    }
-
-                  }
-
-                  );
-              }
-              else
-              {
-                // Player doesn't exist
-                console.log("Player doesn't exist searching for picture.")
-                message.innerHTML = MESSAGE_TEXT_PLAYER_DOESNT_EXIST + id;
-                document.getElementById("playerPicture").src = "";
-              }
-
-              resetInputBoxes();
-
-          }); // need error checking - end playerRef
-      }
-      else
-      {
-        console.log("Invalid screen data - view player picture.");
-        message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - View Player Picture.";
-      }
-
-});
-
-// end viewPlayerPicture button
 // ---------------------------------------------------------
 
-// ------------------------------------------------
-// Begin clear form button listener
-
-clearFormButton.addEventListener('click', function(e)
+function logOffButtonClick()
 {
-    // `zzzz`
-
-    document.getElementById("idInputBox").value = "";
-    document.getElementById("nameInputBox").value = "";
-    document.getElementById("payBountiesNumber").value = "";
-    document.getElementById("minBreakLength").value = "";
-
-});
+  logoffUser();
+}
 
 
-// ------------------------------------------------
-// Begin search player button listener
+// ---------------------------------------------------------
 
-searchPlayerButton.addEventListener('click', function(e)
+function rulesButtonClick()
 {
-    getScreenData();
-    var tempPlayersRef = db.collection("players");
-    var idList = new Array;
+  postMessage(MESSAGE_TEXT_SEE_RULES_BELOW);
+  showRules = true;
+  renderGame(status);
+}
 
-    if (name != "")
+// ----------------------------------------------------------------------
+
+function logoffUser()
+{
+
+    console.log("Logoff called, my id is " + playerId);
+
+    postMessage(MESSAGE_TEXT_LOGOFF);
+
+    //  detach from listeners
+    playerUnsubscribe();
+
+    // console.log("Game Data Unsubscribe called.");
+    // gameDataUnsubscribe();
+    // gameDataUnsubscribe = "";
+
+    if (status == PLAYER_STATUS_ACTIVE) // yyyy
     {
-      // query players db for registered status
-      var query = tempPlayersRef.where("name", "==", name);
-
-      query.get().then(function(querySnapshot)
-      {
-        if (querySnapshot.size == 0)
-        {
-          console.log("No players exist with name = " + name);
-          message.innerHTML = MESSAGE_TEXT_SEARCH_NO_PLAYERS_NAME + name;
-          return;
-        }
-
-        var lastId; // used if only 1 player found, use this to populate id field
-
-        querySnapshot.forEach(function(doc)
-        {
-            // doc.data() is never undefined for query doc snapshots
-            console.log("Looping through name matching players - " + doc.id + " Status is " + doc.data().paid);
-            var tempString = String(doc.id + " Status = " + decodePlayerStatus(doc.data().status) + ". Paid status = " + decodePaid(doc.data().paid));
-            console.log("tempString is " + tempString);
-            //idList.push(doc.id + " Status = " + decodePlayerStatus(doc.data().status));
-
-            idList.push(tempString);
-            lastId = doc.id;
-        }); // end query snapshot for each registered player
-
-        var tempMessage = "Players with name = " + name + " found:<br>";
-
-        var i;
-        for (i = 0; i < idList.length; i++)
-        {
-          tempMessage += idList[i] + "<br>";
-        }
-
-        if (idList.length == 1)
-          document.getElementById("idInputBox").value = lastId;
-
-        console.log ("End of search button");
-        message.innerHTML = tempMessage;
-
-      }); // end query.get
-
-    } // end if name isn't blank
-    else if (id != "") // search on id
-    {
-        var myPlayerRef = db.collection("players").doc(id);
-        myPlayerRef.get().then(function(doc)
-        {
-            if (doc.exists)
-            {
-                console.log("Player search id = " + id + " exists.");
-                message.innerHTML = "Player " + id + " found. Name is " + doc.data().name + ", status is " + decodePlayerStatus(doc.data().status) + ".";
-            }
-            else
-            {
-                console.log("No players exist with id = " + id);
-                message.innerHTML = MESSAGE_TEXT_SEARCH_NO_PLAYERS_ID + id;
-                return;
-            }
-          });
-
-    }     // end if id isn't blank
-    else
-    {
-      console.log("No data entered for player search.");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA;
+        console.log("Link unsubscribe called because I was active");
+        // detach from chain listener
+        linkUnsubscribe();
     }
 
-});  // end search player button listener ---------------
+    // reset global vars - yyy - check newer ones - zzzz
+    playerId = "";
+    name = "";
+    status = PLAYER_STATUS_LOGGED_OFF;  // player status
+    owed = 0;
+    total = 0;
+    targetName = "";
+    targetId = "";
+    nameOfTargetsTarget = "";
+    myLinkRef = ""; // reference to my link in the chain
+    myPicFileName = "";
+    loggedIn = false;
+    iVolunteered = false;
+    myRegistrationType = "";
+    showMyPic = false;
+    myURL = "";
+    bombAlerted = 0;  // specific to the player
+    showRules = false;
+    messages = new Array;
 
+    renderGame(PLAYER_STATUS_LOGGED_OFF);
 
-// ------------------------------------------------
-// Begin Remove player button listener
+    console.log("Logoff Called and completed.");
 
-removePlayerButton.addEventListener('click', function(e)
+}
+
+// end function logoff User - reused by button and also scenario where admin blanks game while user logged in
+
+// Start confirmAssassination function ----------------------
+// moved code out of button listener to allow default action when enter pressed
+
+function confirmAssassinationButtonClick()
 {
-    getScreenData();
-
-    if (id != "")
+    if (gameStatus == GAME_STATUS_OVERNIGHT)
     {
-        var myTargetsID;  // save this for later use
+      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
+      return;
+    }
 
-        var playerRef = db.collection("players").doc(id);
-        playerRef.get().then(function(doc)
-        {
-            if (doc.exists)
+    confirmAssassination();
+}
+
+// ----------------------------------------------------------------------------------
+
+function confirmAssassination()
+{
+    // temp helper vars to make code more readable
+    // var myTargetsID;
+    var myTargetsTargetID;
+    var myTargetsTargetsName;
+
+    // only get data I need
+    console.log("Confirm assassination called.");
+
+    nameOfTargetsTarget = document.getElementById("targetNameBox").value;
+
+    if (nameOfTargetsTarget == "")
+    {
+      console.log("Blank name entered in target's target box.");
+      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Target's target name invalid.");
+      return;
+    }
+
+    // create a reference to my link document in the chain first
+    var myLinkRef = db.collection("chain").doc(playerId);
+
+    myLinkRef.get().then(function(doc)
+    {
+      if (doc.exists)
+      {
+          console.log("Doc exists for me");
+          targetId = doc.data().target;
+
+          // create a reference to my target's link
+          var myTargetsLinkRef = db.collection("chain").doc(doc.data().target);
+          myTargetsLinkRef.get().then(function(doc)
+          {
+            if (doc.exists) // my targets link doc exists
             {
-                switch (doc.data().status)
+                // save my target's target id
+                myTargetsTargetID = doc.data().target;
+
+               // create a reference to the player db for my target's target
+                var myTargetsTargetPlayerRef = db.collection("players").doc(myTargetsTargetID);
+
+                myTargetsTargetPlayerRef.get().then(function(doc)
                 {
-                  case PLAYER_STATUS_ACTIVE:  // delete chain link, empty queue
+                  if (doc.exists) // my target's target player doc exists
+                  {
+                      console.log("Checking names for assassination, " + nameOfTargetsTarget + " and " + doc.data().name);
 
-                      console.log("In remove player, my status is " + doc.data().status);
-
-                      // get my link, save my targetsId
-                      var myLinkRef = db.collection("chain").doc(id);
-                      myLinkRef.get().then(function(doc)
+                      // convert both names to lowercase
+                      if (nameOfTargetsTarget.toLowerCase() == (doc.data().name).toLowerCase())
                       {
-                        if (doc.exists) // Player is active, in the chain
+                        console.log("Names match - good assassination  --------------------------");
+                        postMessage(MESSAGE_TEXT_CONFIRM_BOUNTY);
+                        postEvent(EVENT_TYPE_PLAYER_CONFIRM_KILL, playerId + " killed " + targetId);
+
+                        // Increase total kills by 1 and todays kills by 1
+                        gameDataRef.get().then(function(doc)
                         {
-                            console.log("In remove player, my targets id is " + myTargetsID);
-                            myTargetsID = doc.data().target;
-
-                            // Determine which player has me as their target
-                            var myAssassinsId;
-
-                            // query db for the document where target = my id
-                            var linksRef = db.collection("chain");
-                            var query = linksRef.where("target", "==", id);
-
-                            // update chain
-                            query.get().then((snapshot) =>
+                            if (doc.exists)
                             {
+                                console.log("Game Data exists, increasing total kills and todays kills by 1.  Check for new current leader.");
+                                // set initial message and data
 
-                                  // console.log("Snapshot size is " + snapshot.size); // + "  Snapshot target data is " + snapshot.docs);
-                                  // console.log("Snapshot docs array 0 element id is " + snapshot.docs[0].id); // + "  Snapshot target data is " + snapshot.docs);
+                                statsTotal = doc.data().statsTotal;
+                                statsWaiting = doc.data().statsWaiting;
+                                statsSched = doc.data().statsSched;
+                                statsActive = doc.data().statsActive;
+                                statsTotalKills = doc.data().statsTotalKills;
+                                statsTodaysKills = doc.data().statsTodaysKills;
+                                statsCurrentLeader = doc.data().statsCurrentLeader;
 
-                                  // only 1 always
-                                  myAssassinsId = snapshot.docs[0].id;
+                                if (total > statsCurrentLeader)
+                                {
+                                  statsCurrentLeader = total;
+                                }
 
-                                  console.log("In remove player, my assassin's id is " + myAssassinsId);
+                                // increasing total players by 1  ---------------------------------
+                                db.collection("gameData").doc("gameData").update({
+                                  statsTotalKills: statsTotalKills + 1,
+                                  statsCurrentLeader: statsCurrentLeader,
+                                  statsTodaysKills: statsTodaysKills + 1
+                                })
+                                .then(function() {
+                                  console.log("Increased total kills and todays kills by 1");
+                                })
+                                .catch(function(error) {
+                                  console.error("Increased total kills and todays kills failed", error);
+                                });
+                            } // error checking,
+                        });
 
-                                  // check here for paused scenario -
-                                  // if my target has me as their target, it must be paused
-                                  if (myTargetsID == myAssassinsId)
+                        // create a reference to the player document to increment owed
+                        var playerRef = db.collection("players").doc(playerId);
+
+                        owed++;
+                        total++;
+
+                        // increase owed and total in db
+                        playerRef.get().then(function(doc)
+                        {
+                            if (doc.exists)
+                            {
+                                // add 1 to owed, add 1 to total
+                                db.collection("players").doc(playerId).update({
+                                  owed: owed,
+                                  total: total
+                                })
+                                .then(function() {
+                                  console.log("Players owed and total update success within assassination.");
+                                })
+                                .catch(function(error) {
+                                  console.error("Error player owed and total update to db within assassination.", error);
+                                });
+                            } // end if doc exists
+                            else {
+                              console.log("Player doc doesn't exist in confirm assassination bump owed")
+                            }
+                        });
+
+                        // update my target - Check waiting queue First
+                        // get the waiting queue
+                        var queueRef = db.collection("queues").doc("waiting");
+                        queueRef.get().then(function(doc)
+                        {
+                          if (doc.exists) // waiting queue doc exists
+                          {
+                              console.log("Waiting queue Doc exists");
+
+                              if (doc.data().players != 0)  // bring in waiting players if queue not empty
+                              {
+                                  var i;
+                                  var tempArray = new Array;
+                                  tempArray = doc.data().players;   // create local array to shuffle players
+
+                                  for (i=0;i<tempArray.length*50;i++)
                                   {
-                                    // go into paused mode
-                                    console.log("Game Paused - Only 1 player active. Found within remove player function.");
-                                    message.innerHTML = GAME_STATUS_PAUSED_TEXT;
+                                    var index1 = Math.floor((Math.random() * doc.data().players.length));
+                                    var index2 = Math.floor((Math.random() * doc.data().players.length));
+                                    var tempPlayer = tempArray[index1];
+                                    tempArray[index1] = tempArray[index2];
+                                    tempArray[index2] = tempPlayer;
+                                  }
+
+                                  // assign my target to the first person in the queue
+                                  myLinkRef.update({
+                                        target: tempArray[0]
+                                      })
+                                      .then(function() {
+                                        console.log("Players update assign my target to first in queue success.");
+                                      })
+                                      .catch(function(error) {
+                                        console.error("Error assign my target to first in queue.", error);
+                                  });
+
+                                  // create the rest of the chain and activate players
+                                  var i;
+                                  for (i=0; i<tempArray.length-1;i++)
+                                  {
+                                    console.log("Iteration " + i + " within create links loop within assassination")
+                                    // create a link in the chain
+                                    db.collection("chain").doc(tempArray[i]).set({
+                                        target: tempArray[i+1]
+                                      })
+                                      .then(function() {
+                                        console.log("Success writing to chain within assassination");
+                                      })
+                                      .catch(function(error) {
+                                        console.error("Error writing to chain  within assassination", error);
+                                      });
+
+                                      // update player status to Active
+                                      db.collection("players").doc(tempArray[i]).update({
+                                        status: PLAYER_STATUS_ACTIVE
+                                      })
+                                      .then(function() {
+                                        console.log("Players status update success within assassination.");
+                                      })
+                                      .catch(function(error) {
+                                        console.error("Error player status update to db within assassination.", error);
+                                      });
+
+
+                                      // increasing total players by 1  ---------------------------------
+                                      db.collection("gameData").doc("gameData").update({
+                                        statsActive: ++statsActive
+                                      })
+                                      .then(function() {
+                                        console.log("Increased active players by 1, new statsActive is " + statsActive);
+                                      })
+                                      .catch(function(error) {
+                                        console.error("Increased total kills and todays kills failed", error);
+                                      });
+
+                                      // // update stats - zzzz
+                                      // // Increase active players by 1
+                                      // gameDataRef.get().then(function(doc)
+                                      // {
+                                      //     if (doc.exists)
+                                      //     {
+                                      //         console.log("Game Data exists, increasing total kills and todays kills by 1.  Check for new current leader.");
+                                      //         // set initial message and data
+                                      //
+                                      //         statsActive = doc.data().statsActive;
+                                      //
+                                      //         // increasing total players by 1  ---------------------------------
+                                      //         db.collection("gameData").doc("gameData").update({
+                                      //           statsActive: ++statsActive
+                                      //         })
+                                      //         .then(function() {
+                                      //           console.log("Increased total kills and todays kills by 1");
+                                      //         })
+                                      //         .catch(function(error) {
+                                      //           console.error("Increased total kills and todays kills failed", error);
+                                      //         });
+                                      //     } // error checking,
+                                      // });
+
+
+                                  } // end for loop
+
+                                  // assign the target of the last player in the queue to original target's target
+                                  // create the last link in the chain
+                                  db.collection("chain").doc(tempArray[i]).set({
+                                      target: myTargetsTargetID
+                                    })
+                                    .then(function() {
+                                      console.log("Success last link within assassination");
+                                    })
+                                    .catch(function(error) {
+                                      console.error("Error last link within assassination", error);
+                                    });
+
+                                    // update last player status to Active
+                                    db.collection("players").doc(tempArray[i]).update({
+                                      status: PLAYER_STATUS_ACTIVE
+                                    })
+                                    .then(function() {
+                                      console.log("Players status update success within assassination.");
+                                    })
+                                    .catch(function(error) {
+                                      console.error("Error player status update to db within assassination.", error);
+                                    });
+
+                                    // increasing total players by 1  ---------------------------------
+                                    db.collection("gameData").doc("gameData").update({
+                                      statsActive: ++statsActive
+                                    })
+                                    .then(function() {
+                                      console.log("Increased active players by 1, new statsActive is " + statsActive);
+                                    })
+                                    .catch(function(error) {
+                                      console.error("Increased total kills and todays kills failed", error);
+                                    });
+
+                                    deleteQueue();
+
+                              } // end if there are players in the queue
+                              else
+                              {  // queue is empty
+
+                                  // check if I'm the only player remaining
+                                  if (playerId == myTargetsTargetID)
+                                  {
+                                    console.log("Game Paused - Only 1 player active.");
+
+                                    // clean up my targets data before handling pause scenario
+                                    // delete old target's link
+                                    db.collection("chain").doc(targetId).delete().then(function() {
+                                        console.log("Document successfully deleted!");
+                                    }).catch(function(error) {
+                                        console.error("Error removing document: ", error);
+                                    });
+
+                                    // change my original target's status to inactive
+                                    var myTargetsPlayerRef = db.collection("players").doc(targetId);
+                                    myTargetsPlayerRef.update({
+                                          status: PLAYER_STATUS_INACTIVE
+                                        })
+                                        .then(function() {
+                                          console.log("Players update success.");
+                                        })
+                                        .catch(function(error) {
+                                          console.error("Error player update to db.", error);
+                                        });
 
                                     // Set game status to "Paused"  ---------------------------------
                                     db.collection("gameData").doc("gameData").update({
@@ -1926,183 +1455,674 @@ removePlayerButton.addEventListener('click', function(e)
                                       console.error("Set game status to Paused failed", error);
                                     });
 
+                                    statsActive = 0;
+                                    statsWaiting = 1;
 
-                                    // delete my link - Maybe move this down
-                                    myLinkRef.delete().then(function() {
-                                        console.log("my link Quit Game Document successfully deleted!");
-                                    }).catch(function(error) {
-
-                                        console.error("my link Quit Game Error removing document: ", error);
+                                    // zzzz - update stats
+                                    db.collection("gameData").doc("gameData").update({
+                                      statsActive: 0,
+                                      statsWaiting: 1
+                                    })
+                                    .then(function() {
+                                      console.log("Decr stats active by 1");
+                                    })
+                                    .catch(function(error) {
+                                      console.error("Decr stats active failed", error);
                                     });
 
-                                    return;
 
-                                  }
-
-                                  var myAssassinsLinkRef = db.collection("chain").doc(myAssassinsId);
-
-                                  // Check the waiting queue before rebuilding chain - get the waiting queue
-                                  var queueRef = db.collection("queues").doc("waiting");
-                                  queueRef.get().then(function(doc)
+                                  } // end if I'm the only player remaining
+                                  else
                                   {
-                                    console.log("Inside queue ref up front");
+                                      // Pickup of my targets target (No players waiting)
+                                      myLinkRef.update({
+                                            target: myTargetsTargetID
+                                          })
+                                          .then(function() {
+                                            console.log("Players update assign my target to my targets target's id.");
+                                          })
+                                          .catch(function(error) {
+                                            console.error("Error assign my target to my targets target's id.", error);
+                                      });
 
-                                    if (doc.exists) // waiting queue doc exists
-                                    {
-                                        console.log("Waiting queue Doc exists");
+                                  }  // end else check if I'm the only player
 
-                                        if (doc.data().players != 0)  // bring in waiting players if queue not empty
-                                        {
-                                            var i;
-                                            var tempArray = new Array;
-                                            tempArray = doc.data().players;   // create local array to shuffle players
+                              } // end else queue is empty
 
-                                            for (i=0;i<tempArray.length*50;i++)
-                                            {
-                                              var index1 = Math.floor((Math.random() * doc.data().players.length));
-                                              var index2 = Math.floor((Math.random() * doc.data().players.length));
-                                              var tempPlayer = tempArray[index1];
-                                              tempArray[index1] = tempArray[index2];
-                                              tempArray[index2] = tempPlayer;
-                                            }
+                              // delete old target's link
+                              db.collection("chain").doc(targetId).delete().then(function() {
+                                  console.log("Document successfully deleted!");
+                              }).catch(function(error) {
+                                  console.error("Error removing document: ", error);
+                              });
 
-                                            // assign the person that had me to the first person in the queue
-                                            myAssassinsLinkRef.update({
-                                                  target: tempArray[0]
-                                                })
-                                                .then(function() {
-                                                  console.log("Players update assign my target to first in queue success.");
-                                                })
-                                                .catch(function(error) {
-                                                  console.error("Error assign my target to first in queue.", error);
-                                            });
-
-                                            // create the rest of the chain and activate players
-                                            var i;
-                                            for (i=0; i<tempArray.length-1;i++)
-                                            {
-                                              console.log("Iteration " + i + " within create links loop within assassination")
-                                              // create a link in the chain
-                                              db.collection("chain").doc(tempArray[i]).set({
-                                                  target: tempArray[i+1]
-                                                })
-                                                .then(function() {
-                                                  console.log("Success writing to chain within assassination");
-                                                })
-                                                .catch(function(error) {
-                                                  console.error("Error writing to chain  within assassination", error);
-                                                });
-
-                                                // update player status to Active
-                                                db.collection("players").doc(tempArray[i]).update({
-                                                  status: PLAYER_STATUS_ACTIVE
-                                                })
-                                                .then(function() {
-                                                  console.log("Players status update success within assassination.");
-                                                })
-                                                .catch(function(error) {
-                                                  console.error("Error player status update to db within assassination.", error);
-                                                });
-
-                                            } // end for loop
-
-                                            // assign the target of the last player in the queue to my original target
-                                            // create the last link in the chain
-                                            db.collection("chain").doc(tempArray[i]).set({
-                                                target: myTargetsID
-                                              })
-                                              .then(function() {
-                                                console.log("Success last link within assassination");
-                                              })
-                                              .catch(function(error) {
-                                                console.error("Error last link within assassination", error);
-                                              });
-
-                                              // update last player status to Active
-                                              db.collection("players").doc(tempArray[i]).update({
-                                                status: PLAYER_STATUS_ACTIVE
-                                              })
-                                              .then(function() {
-                                                console.log("Players status update success within assassination.");
-                                              })
-                                              .catch(function(error) {
-                                                console.error("Error player status update to db within assassination.", error);
-                                              });
-
-                                              deleteQueue();
-
-                                              // delete my link - Maybe move this down
-                                              myLinkRef.delete().then(function() {
-                                                  console.log("my link take a break Document successfully deleted!");
-                                              }).catch(function(error) {
-
-                                                  console.error("my link take a break Error removing document: ", error);
-                                              });
-
-                                        } // end if there are players in the queue
-                                        else
-                                        {  // queue is empty
-                                            console.log("Queue is empty");
-
-                                            // Assign the person that had me to my target (No players waiting)
-                                            myAssassinsLinkRef.update({
-                                                  target: myTargetsID
-                                                })
-                                                .then(function() {
-                                                  console.log("Players assign the person that had me to my target.");
-                                                })
-                                                .catch(function(error) {
-                                                  console.error("Error assign my target to my targets target's id.", error);
-                                            });
-
-                                            // delete my link - Maybe move this down
-                                            myLinkRef.delete().then(function() {
-                                                console.log("my link take a break Document successfully deleted!");
-                                            }).catch(function(error) {
-
-                                                console.error("my link take a break Error removing document: ", error);
-                                            });
-
-                                        }   // end else - queue was empty
-
-                                    } // end if queue doc exists
-                                    else {
-                                      console.log("Queue doc doesn't exist in take a break");
-                                    }
-
+                              // change my original target's status to inactive
+                              var myTargetsPlayerRef = db.collection("players").doc(targetId);
+                              myTargetsPlayerRef.update({
+                                    status: PLAYER_STATUS_INACTIVE
+                                  })
+                                  .then(function() {
+                                    console.log("Players update success.");
+                                  })
+                                  .catch(function(error) {
+                                    console.error("Error player update to db.", error);
                                   });
 
-                            }); // need error checking
+                                // increasing total players by 1  ---------------------------------
+                                db.collection("gameData").doc("gameData").update({
+                                  statsActive: --statsActive,
+                                  statsWaiting: 0
+                                })
+                                .then(function() {
+                                  console.log("Increased total kills and todays kills by 1");
+                                })
+                                .catch(function(error) {
+                                  console.error("Increased total kills and todays kills failed", error);
+                                });
 
-                        }
-                        else {
-                          console.log("My link in chain doesn't exist - Remove Player");
-                        }
+                              // // zzzz - update stats
+                              // // Decrease active by 1
+                              // gameDataRef.get().then(function(doc)
+                              // {
+                              //     if (doc.exists)
+                              //     {
+                              //         console.log("Game Data exists, increasing total kills and todays kills by 1.  Check for new current leader.");
+                              //         // set initial message and data
+                              //
+                              //         statsActive = doc.data().statsActive;
+                              //         statsWaiting = 0;
+                              //
+                              //         // increasing total players by 1  ---------------------------------
+                              //         db.collection("gameData").doc("gameData").update({
+                              //           statsActive: --statsActive,
+                              //           statsWaiting: 0
+                              //         })
+                              //         .then(function() {
+                              //           console.log("Increased total kills and todays kills by 1");
+                              //         })
+                              //         .catch(function(error) {
+                              //           console.error("Increased total kills and todays kills failed", error);
+                              //         });
+                              //     } // error checking,
+                              // });
+
+
+                                console.log("Success");
+
+                          } // end waiting queue doc exists
+                          else {
+                            console.log("Waiting queue doc does not exist");
+                          }
+
+                        }).catch(function(error) {
+                          console.log("Error getting playerRef.get() document:", error);
+                        });
+
+                      } // end if name matched
+                      else
+                      {
+                          console.log("Attempted assassination names don't match.");
+                          postMessage(MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
+                          postError(playerId,MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
+                          renderGame(status);
+                      }
+
+                  }   // end if doc exists - my targets player ref
+                  else {
+                    console.log("My target's player ref doc doesnt exist");
+                  }
+
+                }).catch(function(error) {
+                  console.log("Error getting playerRef.get() document:", error);
+                  });
+
+            } // end if doc exists - myTargetsLinkRef.get()
+            else {
+              console.log("My myTargetsTargetPlayerRef.get doc doesnt exist");
+            }
+
+          }).catch(function(error) {
+            console.log("Error getting myTargetsPlayerRef.get() document:", error);
+          });
+
+      } // end if mylink doc exists
+      else {
+        console.log("Mylink Doc doesnt exist - confirmAssassination");
+      }
+
+    }).catch(function(error) {
+      console.log("Error getting myLinkRef.get() document:", error);
+    });
+
+    // document.getElementById("targetNameBox").value = "";
+
+}
+
+// -----------------------------------------------------------------------------------
+// start buy back in button listener
+
+function buyBackInButtonClick()
+{
+
+  var answer = confirm("Are you sure you want to buy back in?");
+
+  if (answer == false)
+    return;
+
+  // assume this button is only enabled if owed is 1 or greater and in Inactive status
+  // get player ref
+  var playerRef = db.collection("players").doc(playerId);
+
+  playerRef.get().then(function(doc)
+  {
+    if (doc.exists)
+    {
+        // check status and owed
+        if ((doc.data().status == PLAYER_STATUS_INACTIVE) && (doc.data().owed >= 1))
+        {
+          // proceed with buy back in process - ok
+          // update player status to Waiting, decrement owed in db
+          playerRef.update({
+            status: PLAYER_STATUS_WAITING,
+            owed: Number(doc.data().owed) - 1
+          })
+          .then(function() {
+            console.log("Players status update success - waiting buy back in.");
+          })
+          .catch(function(error) {
+            console.error("Error player status update to db - waiting buy back in", error);
+          });
+
+          // add player to waiting queue
+          var tempQueue = new Array;
+          console.log("About to check DB for waiting queue --------------");
+
+          // get the waiting queue and add player
+          var queueRef = db.collection("queues").doc("waiting");
+          queueRef.get().then(function(doc)
+          {
+            if (doc.exists)
+            {
+                tempQueue = doc.data().players; // save queue locally
+
+                // add new player to local queue
+                tempQueue.push(playerId);
+
+                // update db queue with local queue
+                db.collection("queues").doc("waiting").set({
+                    players: tempQueue
+                  })
+                  .then(function() {
+                    console.log("db setting waiting queue players array success");
+                  })
+                  .catch(function(error) {
+                    console.error("db setting waiting queue players array failed", error);
+                  });
+
+                // add 1 to waiting
+
+                statsWaiting++;
+
+                // increasing total players by 1  ---------------------------------
+                db.collection("gameData").doc("gameData").update({
+                  statsWaiting: statsWaiting
+                })
+                .then(function() {
+                  console.log("Increased total players by 1");
+                })
+                .catch(function(error) {
+                  console.error("Set game status to Not Started failed", error);
+                });
+
+            } else
+            {
+              console.log("Error Doc doesnt exists");
+            }
+          }).catch(function(error) {
+              console.log("Error getting queue document:", error);
+              });
+
+          postMessage(MESSAGE_TEXT_BUY_BACK_IN);
+          postEvent(EVENT_TYPE_PLAYER_BUY_BACK_IN, playerId);
+          status = PLAYER_STATUS_WAITING;
+          renderGame(PLAYER_STATUS_WAITING);
+
+        } // end if inactive and owed bounty
+        else {
+          // can't buy back in
+          console.log("Can't buy back in.");
+        }
+    } // end if player doc exists
+
+  }); // end player ref get - need error checking
+
+}
+
+// ---------------------------------------------------------
+
+function takeABreakButtonClick()
+{
+
+  var answer = confirm("Are you sure you want to take a break?  You will be eligible to return in " + (minBreakLength/60) + " hours.");
+
+  if (answer == false)
+    return;
+
+  // get player ref
+  var playerRef = db.collection("players").doc(playerId);
+  // var myTargetsID;  // save this for later use
+
+  console.log("Take a break button pressed.  Player id is " + playerId);
+
+  playerRef.get().then(function(doc)
+  {
+    if (doc.exists)
+    {
+        // only take a break if active
+        if (doc.data().status == PLAYER_STATUS_ACTIVE)
+        {
+          status = PLAYER_STATUS_BREAK;
+
+          var now = new Date(Date.now());
+          var newTimeStamp = new firebase.firestore.Timestamp.fromDate(now);
+
+          console.log("Take a break - firestore now date is " + newTimeStamp);
+
+          // proceed with taking a break
+          // update player status to on break
+          playerRef.update({
+            status: PLAYER_STATUS_BREAK,
+            breakTimeStamp: newTimeStamp
+            // breakTime: now()
+          })
+          .then(function() {
+            console.log("Players status update success - break.");
+            postMessage(MESSAGE_TEXT_TAKE_BREAK);
+            postEvent(EVENT_TYPE_PLAYER_TAKE_BREAK, playerId);
+            document.getElementById("messageBoardLabel").innerHTML = "";
+            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+          })
+          .catch(function(error) {
+            console.error("Error player status update to db - break", error);
+          });
+
+          updateChainToSkipMe();
+
+          // decreasing current players by 1
+          gameDataRef.get().then(function(doc)
+          {
+              if (doc.exists)
+              {
+                  console.log("Game Data exists, decreasing current players by 1");
+                  // set initial message and data
+
+                  statsActive = doc.data().statsActive;
+
+                  // increasing total players by 1  ---------------------------------
+                  db.collection("gameData").doc("gameData").update({
+                    statsActive: statsActive - 1
+                  })
+                  .then(function() {
+                    console.log("Increased total players by 1");
+                  })
+                  .catch(function(error) {
+                    console.error("Set game status to Not Started failed", error);
+                  });
+              } // error checking,
+          });
+
+          renderGame(PLAYER_STATUS_BREAK);
+
+        } // end if active
+        else {
+          // Button should only be visible if active status
+          console.log("Incorrect Status to Take Break.  Don't believe this is even reachable.");
+          postMessage(MESSAGE_TEXT_CANT_TAKE_BREAK);
+          postError(playerId,MESSAGE_TEXT_CANT_TAKE_BREAK);
+        }
+    } // end if player doc exists
+
+  }); // end player ref get - need error checking
+
+}  // end take a break button click
+
+
+// ---------------------------------------------------------
+// begin return from break button
+
+function returnFromBreakButtonClick()
+{
+
+  // get player ref
+  var playerRef = db.collection("players").doc(playerId);
+
+  console.log("Return break button pressed");
+  playerRef.get().then(function(doc)
+  {
+    if (doc.exists)
+    {
+        // only return from break if on break
+        if (doc.data().status == PLAYER_STATUS_BREAK)
+        {
+            // only allow if after the waiting period
+            var breakTime = new Date((doc.data().breakTimeStamp).toDate());
+            var now = new Date(Date.now());
+            console.log("Now time is " + now + "  Firestore break time is " + breakTime);
+
+            var minsDiff = ((now - breakTime)/1000)/60; // num mins
+            console.log("Mins difference is " + minsDiff);
+
+            if (minsDiff < minBreakLength)
+            {
+              console.log("Too early to return");
+              postMessage(MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK);
+              renderGame(status);
+              return;
+            }
+
+              status = PLAYER_STATUS_WAITING;
+
+              // proceed with returning break
+              // update player status to Waiting
+              playerRef.update({
+                status: PLAYER_STATUS_WAITING
+              })
+              .then(function() {
+                console.log("Players status update success - return from break.");
+                postMessage(MESSAGE_TEXT_RETURN_BREAK);
+                postEvent(EVENT_TYPE_PLAYER_RETURN_BREAK, playerId);
+                document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+              })
+              .catch(function(error) {
+                console.error("Error player status update to db - return from break", error);
+              });
+
+              // put myself in the queue
+              var tempQueue = new Array;
+              var queueRef = db.collection("queues").doc("waiting");
+              queueRef.get().then(function(doc)
+              {
+                if (doc.exists)
+                {
+                    tempQueue = doc.data().players; // save queue locally
+
+                    // add me onto local queue
+                    tempQueue.push(playerId);
+
+                    // update db queue with local queue
+                    queueRef.set({
+                        players: tempQueue
+                      })
+                      .then(function() {
+                        console.log("db setting waiting queue players array success");
+                      })
+                      .catch(function(error) {
+                        console.error("db setting waiting queue players array failed", error);
                       });
 
-                    break;
+                }   // end if doc.exists
+                else
+                {
+                  console.log("Error queue Doc doesnt exists");
+                }
+              }).catch(function(error) {
+                  console.log("Error getting queue document:", error);
+                  });
 
-                  case PLAYER_STATUS_WAITING:
+              renderGame(PLAYER_STATUS_WAITING);
 
-                      // delete from queue
+        }  // end if status is break
+        else {
+          console.log("Not on break, can't come back from break.");
+          postMessage(MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK);
+          postError(playerId,MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK);
+        }
+    }  // end if player ref doc exists
 
-                      // First get queue, loop through, create new queue without player
-                      var tempQueue = new Array;
+  }); // end playerRef.get
 
-                      // get the waiting queue and remove this player
-                      var queueRef = db.collection("queues").doc("waiting");
-                      queueRef.get().then(function(doc)
+} //  end returnFromBreakButton click
+
+// ------------------  Pic functions ------------------------
+
+function uploadPictureButtonClick()
+{
+
+    var fileChosen = document.getElementById("playerPictureInput");
+    var curFiles = fileChosen.files;
+
+    if(curFiles.length === 1)   // only allow one picture
+    {
+        // get player reference to update picture field
+        myPicFileName = curFiles[0].name;   // set global var
+
+        var playerRef = db.collection("players").doc(playerId);
+        playerRef.get().then(function(doc)
+        {
+          if (doc.exists)
+          {
+                // update player picture name field
+                playerRef.update({
+                  pictureName: myPicFileName
+                })
+                .then(function() {
+                  console.log("Updated pic name in player db document.");
+                  // postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
+                })
+                .catch(function(error) {
+                  console.error("Error player pic name update", error);
+                  postMessage(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
+                  postError(playerId,MESSAGE_TEXT_UPLOAD_PIC_FAILED);
+                  document.getElementById("playerPictureInput").value = "";
+                });
+          } // end if player doc exists - need error checking
+
+        });
+
+        var fullPath = String(playerId) + "/" + myPicFileName;
+
+        // Create a reference
+        var myFileRef = storageRef.child(fullPath);
+
+        // Upload file
+        var uploadTask = myFileRef.put(curFiles[0]);  // needs error checking
+
+        // Register three observers:
+        // 1. 'state_changed' observer, called any time the state changes
+        // 2. Error observer, called on failure
+        // 3. Completion observer, called on successful completion
+
+        uploadTask.on('state_changed', function(snapshot)
+        {
+              // Observe state change events such as progress, pause, and resume
+              // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+              var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+
+              console.log('Upload is ' + progress + '% done');
+
+              switch (snapshot.state)
+              {
+                case firebase.storage.TaskState.PAUSED: // or 'paused'
+                  console.log('Upload is paused');
+                  break;
+                case firebase.storage.TaskState.RUNNING: // or 'running'
+                  console.log('Upload is running');
+                  break;
+              }
+
+          },
+          function(error)
+          {
+              // Handle unsuccessful uploads
+              console.log("Unsuccessful file upload");
+              postMessage(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
+              postError(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
+
+              document.getElementById("playerPictureInput").value = "";
+
+          },
+          function()
+          {
+                // Handle successful uploads on complete
+                // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+                uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL)
+                {
+                  console.log('Success - File available at', downloadURL);
+                  postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
+                  postEvent(EVENT_TYPE_PLAYER_UPLOAD_PIC, playerId);
+                  document.getElementById("playerPictureInput").value = "";
+                  renderGame(status);
+                });
+          });
+
+    } // end if 1 file chosen
+    else
+    {
+      console.log("You must choose 1 file");
+      postMessage(MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE);
+      postError(playerId,MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE);
+      document.getElementById("playerPictureInput").value = "";
+    }
+
+}  // end function
+
+// ------------------------------------------------------------------
+// Start view my picture button listener
+
+function viewMyPictureButtonClick()
+{
+
+      console.log("View my picture clicked, myPicFileName is " + myPicFileName);
+      var myPictureRef = storageRef.child(String(playerId) + "/" + myPicFileName);
+
+      myPictureRef.getDownloadURL().then(function(url)
+      {
+        console.log("getDownloadURL worked");
+
+        showMyPic = true;
+        myURL = url;
+
+        renderGame(status);
+
+      }).catch(function(error)
+        {
+          decodeFileErrorCode(error,PIC_MISSING_MINE);
+          console.log("View my picture failed");
+          // document.getElementById("myPicture").src = "";
+          postError(playerId, PIC_MISSING_MINE);
+        });  // end catch
+
+} // end view my pic button
+
+// ---------------------------------------------------------
+
+// quitGameButton
+
+function quitGameButtonClick()
+{
+    console.log("Quit game called");
+    // var myTargetsID;  // save this for later use if nec
+
+    // confirm the user really wants to quit
+
+    var answer = confirm("Are you sure you want to quit?");
+
+    if (answer == false)
+      return;
+
+    var playerRef = db.collection("players").doc(playerId);
+    playerRef.get().then(function(doc)
+    {
+        if (doc.exists)
+        {
+            switch (doc.data().status)
+            {
+              case PLAYER_STATUS_GAME_OVER:
+
+                postMessage(MESSAGE_TEXT_CANT_QUIT_GAME_OVER);
+                return;
+                break;
+
+              case PLAYER_STATUS_ACTIVE:  // delete chain link, empty queue
+
+                  console.log("In quit game, my status is " + doc.data().status + "  My targets id is " + targetId);
+
+                  updateChainToSkipMe();
+
+                  // decreasing current players by 1
+                  gameDataRef.get().then(function(doc)
+                  {
+                      if (doc.exists)
                       {
-                        if (doc.exists)
+                          console.log("Game Data exists, decreasing current players by 1");
+                          // set initial message and data
+
+                          statsActive = doc.data().statsActive;
+
+                          // increasing total players by 1  ---------------------------------
+                          db.collection("gameData").doc("gameData").update({
+                            statsActive: statsActive - 1
+                          })
+                          .then(function() {
+                            console.log("Increased total players by 1");
+                          })
+                          .catch(function(error) {
+                            console.error("Set game status to Not Started failed", error);
+                          });
+                      } // error checking,
+                  });
+
+                  deletePlayer();
+
+                  postMessage(MESSAGE_TEXT_QUIT);
+                  postEvent(EVENT_TYPE_PLAYER_QUIT_GAME, playerId);
+                  renderGame(PLAYER_STATUS_LOGGED_OFF);
+
+                break;
+
+              case PLAYER_STATUS_WAITING:
+
+                  // delete from queue
+                  // First get queue, loop through, create new queue without player
+                  var tempQueue = new Array;
+
+                  // get the waiting queue and remove this player
+                  var queueRef = db.collection("queues").doc("waiting");
+                  queueRef.get().then(function(doc)
+                  {
+                    if (doc.exists)
+                    {
+                        var i;
+
+                        console.log("Length of waiting queue going in is " + doc.data().players.length);
+                        for (i=0;i<doc.data().players.length;i++)
                         {
-                            var i;
-
-                            for (i=0;i<doc.data().players.length;i++)
+                            console.log("Waiting queue id is " + doc.data().players[i] + " My id is " + playerId);
+                            if (doc.data().players[i] != playerId)
                             {
-                                if (doc.data().players[i] != id)
-                                  tempQueue.push(id);
+                              console.log("Pushing id " + doc.data().players[i] + " onto temp q");
+                              tempQueue.push(doc.data().players[i]);
                             }
+                        }
 
+                        if (doc.data().players.length == 1) // only me
+                        {
+                            console.log("Queue only me");
+                            // update db queue with local queue
+                            db.collection("queues").doc("waiting").update({
+                                players: []
+                            })
+                            .then(function() {
+                              console.log("db setting waiting queue players array success");
+                            })
+                            .catch(function(error) {
+                              console.error("db setting waiting queue players array failed", error);
+                            });
+
+                        }
+                        else
+                        {
+                            console.log("Queue not only me");
                             // update db queue with local queue
                             db.collection("queues").doc("waiting").set({
                                 players: tempQueue
@@ -2114,59 +2134,514 @@ removePlayerButton.addEventListener('click', function(e)
                               console.error("db setting waiting queue players array failed", error);
                             });
 
-                        }  // end if doc.exists
-                        else
-                        {
-                          console.log("Error Queue Doc doesn't exist - Remove Player");
                         }
-                      }).catch(function(error) {
-                          console.log("Error getting queue document - Remove Player:", error);
-                      });
 
-                    break;
+                        deletePlayer();
 
-                  case PLAYER_STATUS_INACTIVE:
-                  case PLAYER_STATUS_BREAK:
-                  case PLAYER_STATUS_LOGGED_OFF:
-                  case PLAYER_STATUS_REGISTERED:
+                        renderGame(PLAYER_STATUS_LOGGED_OFF);
 
-                    break;
+                    }  // end if doc.exists
+                    else
+                    {
+                      console.log("Error Queue Doc doesn't exist - Remove Player");
+                    }
+                  }).catch(function(error) {
+                      console.log("Error getting queue document - Remove Player:", error);
+                  });
 
-                  default:
+                break;
 
+              case PLAYER_STATUS_SCHEDULED:
+
+                    // delete from scheduled queue
+                    // First get queue, loop through, create new queue without player
+                    var tempQueue = new Array;
+
+                    // get the waiting queue and remove this player
+                    var queueRef = db.collection("queues").doc("scheduled");
+                    queueRef.get().then(function(doc)
+                    {
+                      if (doc.exists)
+                      {
+                          var i;
+
+                          console.log("Length of scheduled queue going in is " + doc.data().players.length);
+                          for (i=0;i<doc.data().players.length;i++)
+                          {
+                              console.log("Scheduled queue id is " + doc.data().players[i] + " My id is " + playerId);
+                              if (doc.data().players[i] != playerId)
+                              {
+                                console.log("Pushing id " + doc.data().players[i] + " onto temp q");
+                                tempQueue.push(doc.data().players[i]);
+                              }
+                          }
+
+                          if (doc.data().players.length == 1) // only me
+                          {
+                              console.log("Queue only me");
+                              // update db queue with local queue
+                              db.collection("queues").doc("scheduled").update({
+                                  players: []
+                              })
+                              .then(function() {
+                                console.log("db setting scheduled queue players array success");
+                              })
+                              .catch(function(error) {
+                                console.error("db setting scheduled queue players array failed", error);
+                              });
+
+                          }
+                          else
+                          {
+                              console.log("Queue not only me");
+                              // update db queue with local queue
+                              db.collection("queues").doc("scheduled").set({
+                                  players: tempQueue
+                              })
+                              .then(function() {
+                                console.log("db setting scheduled queue players array success");
+                              })
+                              .catch(function(error) {
+                                console.error("db setting scheduled queue players array failed", error);
+                              });
+
+                          }
+
+                          deletePlayer();
+
+                          renderGame(PLAYER_STATUS_LOGGED_OFF);
+
+                      }  // end if doc.exists
+                      else
+                      {
+                        console.log("Error Queue Doc doesn't exist - Remove Player");
+                      }
+                    }).catch(function(error) {
+                        console.log("Error getting queue document - Remove Player:", error);
+                    });
+
+                  break;
+
+              case PLAYER_STATUS_INACTIVE:
+              case PLAYER_STATUS_BREAK:
+              case PLAYER_STATUS_LOGGED_OFF:
+              case PLAYER_STATUS_REGISTERED:
+
+                  deletePlayer();
+                  renderGame(PLAYER_STATUS_LOGGED_OFF);
+
+                break;
+
+              default:
+
+            }
+
+        }  // end if doc exists, original player ref
+        else {
+          console.log("Player doesn't exist on Quit Game call");
+          postMessage(MESSAGE_TEXT_PLAYER_NOT_FOUND);
+        }
+
+    }); // end player ref.get
+
+} // end quit game button click
+
+// ---------------------------------------------------------
+// Begin volunteer button
+
+function volunteerButtonClick()
+{
+
+    if (gameStatus == GAME_STATUS_OVERNIGHT)
+    {
+      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
+      return;
+    }
+
+    iVolunteered = true;
+
+    // error checking for near simultaneous volunteers - get var from db first and check?  Might help?
+    var gameDataRef = db.collection("gameData").doc("gameData");
+    gameDataRef.get().then(function(doc)
+    {
+      if (doc.exists)
+      {
+        if (doc.data().volunteerNeeded == false)
+        {
+          document.getElementById("volunteerButton").style.visibility = "hidden";
+          return;
+        }
+        else
+        {
+
+          // flip db var to false
+          db.collection("gameData").doc("gameData").update({
+            volunteerNeeded: false
+          })
+          .then(function() {
+            console.log("Updated game data volunteer needed to false.");
+          })
+          .catch(function(error) {
+            console.error("Error - game data volunteer needed to false.", error);
+          });
+
+          volunteerNeeded = false;
+
+          // need new version of this to bring in scheduled queue too - yyy ?
+          processVolunteer();
+
+          // get player ref
+          var playerRef = db.collection("players").doc(playerId);
+
+          playerRef.get().then(function(doc)
+          {
+            if (doc.exists)
+            {
+                // update player status to inactive
+                playerRef.update({
+                  status: PLAYER_STATUS_INACTIVE,
+                  owed: doc.data().owed + 1,
+                  total: doc.data().total + 1
+                })
+                .then(function() {
+                  console.log("Players status update success - volunteer inactive.");
+                  postEvent(EVENT_TYPE_PLAYER_VOLUNTEER, playerId);
+                })
+                .catch(function(error) {
+                  console.error("Error player status update to db - volunteer inactive", error);
+                });
+
+            }   // if doc exists
+
+          });
+
+          // rely on status change for screen redraw
+
+        } // volunteer needed is still true, continue
+
+      } // end if doc.exists
+    });
+
+}   // end volunteer button click
+
+// -------------------------------------------------------
+// similar to updateChainToSkipMe, however, assume scheduled queue exists
+
+function processVolunteer()
+{
+    // var myTargetsID;
+
+    console.log("In processVolunteer id is " + playerId);
+
+    var linkRef = db.collection("chain").doc(playerId);
+    linkRef.get().then(function(doc)
+    {
+      console.log("In processVolunteer link ref function called ");
+
+      if (doc.exists) // Player is active, in the chain
+      {
+          console.log("In processVolunteer Doc exists.");
+
+          targetId = doc.data().target;
+          console.log("In processVolunteer, my targets id is " + targetId);
+
+          // Determine which player has me as their target
+          var myAssassinsId;
+
+          // query db for the document where target = my id
+          var linksRef = db.collection("chain");
+          var query = linksRef.where("target", "==", playerId);
+
+          // update chain - get the player that has me as their target
+          query.get().then((snapshot) =>
+          {
+                // console.log("Snapshot size is " + snapshot.size); // + "  Snapshot target data is " + snapshot.docs);
+                // console.log("Snapshot docs array 0 element id is " + snapshot.docs[0].id); // + "  Snapshot target data is " + snapshot.docs);
+                // only 1 always
+                myAssassinsId = snapshot.docs[0].id;
+
+                console.log("In processVolunteer, my assassin's id is " + myAssassinsId);
+
+                // check here for paused scenario -
+                // if my target has me as their target, it must be paused
+                if (targetId == myAssassinsId)
+                {
+                  // go into paused mode
+                  console.log("Game Paused - Only 1 player active. Found within processVolunteer function.");
+                  postMessage(GAME_STATUS_PAUSED_TEXT);
+
+                  // Set game status to "Paused"  ---------------------------------
+                  db.collection("gameData").doc("gameData").update({
+                    status: GAME_STATUS_PAUSED
+                  })
+                  .then(function() {
+                    console.log("Set game status to Paused");
+                  })
+                  .catch(function(error) {
+                    console.error("Set game status to Paused failed", error);
+                  });
+
+                  return;
 
                 }
 
-                // delete player last ------------------------------------
-                db.collection("players").doc(id).delete().then(function()
+                // not a pause scenario, Continue
+                // Get reference to the assassin that has me as their target
+                var myAssassinsLinkRef = db.collection("chain").doc(myAssassinsId);
+
+                // Grab scheduled queue first
+                var tempArray = new Array;
+
+                // Check the sched queue before rebuilding chain - get the waiting queue
+                var schedQueueRef = db.collection("queues").doc("scheduled");
+                schedQueueRef.get().then(function(doc)
                 {
-                  console.log("Player " + id + " successfully deleted!");
-                  message.innerHTML = MESSAGE_TEXT_REMOVED_PLAYER + id;
-                }).catch(function(error)
-                {
-                      console.error("Error removing player " + id + " Error: ", error);
+                  // console.log("Inside sched queue ref up front");
+                  if (doc.exists) // waiting queue doc exists
+                  {
+                      console.log("Scheduled queue exists");
+                      // console.log("Waiting queue Doc exists");
+                      if (doc.data().players != 0)  // bring in waiting players if queue not empty
+                      {
+                          console.log("Scheduled queue exists, players array not zero");
+                          tempArray = doc.data().players;   // create local array to shuffle players
+                      }
+
+                      // Check the waiting queue before rebuilding chain - get the waiting queue
+                      var queueRef = db.collection("queues").doc("waiting");
+                      queueRef.get().then(function(doc)
+                      {
+                        // console.log("Inside queue ref up front");
+                        if (doc.exists) // waiting queue doc exists
+                        {
+
+                            // console.log("Waiting queue Doc exists");
+                            if (doc.data().players != 0)  // bring in waiting players if queue not empty
+                            {
+
+                                console.log("Waiting queue exists in process volunteer, players array not blank.");
+                                var i;
+                                for (i=0; i<doc.data().players.length; i++ )
+                                  tempArray.push(doc.data().players[i]);
+
+                            } // if waiting queue players array has players
+                            else
+                            {
+                              console.log("Waiting queue is blank in process volunteer");
+                            }
+
+                        } // if doc exists for waiting queue
+
+                        for (i=0;i<tempArray.length*50;i++)
+                        {
+                          var index1 = Math.floor((Math.random() * doc.data().players.length));
+                          var index2 = Math.floor((Math.random() * doc.data().players.length));
+                          var tempPlayer = tempArray[index1];
+                          tempArray[index1] = tempArray[index2];
+                          tempArray[index2] = tempPlayer;
+                        }
+
+                        console.log("About to assign my assassin in process volunteer. tempQ size is now " + tempArray.length);
+                        // assign the person that had me to the first person in the queue
+                        myAssassinsLinkRef.update({
+                              target: tempArray[0]
+                            })
+                            .then(function() {
+                              console.log("Players update assign my target to first in queue success.");
+                            })
+                            .catch(function(error) {
+                              console.error("Error assign my target to first in queue.", error);
+                            });
+
+                          // create the rest of the chain and activate players
+                          var i;
+                          for (i=0; i<tempArray.length-1;i++)
+                          {
+                            console.log("Iteration " + i + " within create links loop within assassination")
+                            // create a link in the chain
+                            db.collection("chain").doc(tempArray[i]).set({
+                                target: tempArray[i+1]
+                              })
+                              .then(function() {
+                                console.log("Success writing to chain within assassination");
+                              })
+                              .catch(function(error) {
+                                console.error("Error writing to chain  within assassination", error);
+                              });
+
+                              // update player status to Active
+                              db.collection("players").doc(tempArray[i]).update({
+                                status: PLAYER_STATUS_ACTIVE
+                              })
+                              .then(function() {
+                                console.log("Players status update success within assassination.");
+                              })
+                              .catch(function(error) {
+                                console.error("Error player status update to db within assassination.", error);
+                              });
+
+                              console.log("Before increase stats active by 1, statsActive is " + statsActive);
+
+                              // increasing active players by 1  ---------------------------------
+                              db.collection("gameData").doc("gameData").update({
+                                statsActive: ++statsActive
+                              })
+                              .then(function() {
+                                console.log("Increased stats active by 1");
+                              })
+                              .catch(function(error) {
+                                console.error("Increased stats active failed", error);
+                              });
+
+                          } // end for loop
+
+
+                          console.log("About to update chain i is " + i + " target id is " + targetId);
+
+                          // assign the target of the last player in the queue to my original target
+                          // create the last link in the chain
+                          db.collection("chain").doc(tempArray[i]).set({
+                              target: targetId
+                            })
+                            .then(function() {
+                              console.log("Success last link within assassination");
+                            })
+                            .catch(function(error) {
+                              console.error("Error last link within assassination", error);
+                            });
+
+                            // update last player status to Active
+                            db.collection("players").doc(tempArray[i]).update({
+                              status: PLAYER_STATUS_ACTIVE
+                            })
+                            .then(function() {
+                              console.log("Players status update success within assassination.");
+                            })
+                            .catch(function(error) {
+                              console.error("Error player status update to db within assassination.", error);
+                            });
+
+                            // increasing active players by 1  ---------------------------------
+                            db.collection("gameData").doc("gameData").update({
+                              statsActive: ++statsActive
+                            })
+                            .then(function() {
+                              console.log("Increased stats active by 1");
+                            })
+                            .catch(function(error) {
+                              console.error("Increased stats active failed", error);
+                            });
+
+
+                            deleteQueue();
+                            deleteSchedQueue();
+
+                            // delete my link - Maybe move this down
+                            linkRef.delete().then(function() {
+                                console.log("my link take a break Document successfully deleted!");
+                            }).catch(function(error) {
+
+                                console.error("my link take a break Error removing document: ", error);
+                            });
+
+                            statsWaiting = 0;
+                            statsSched = 0;
+
+                            // increasing active players by 1  ---------------------------------
+                            db.collection("gameData").doc("gameData").update({
+                              statsWaiting: 0,
+                              statsSched: 0
+                            })
+                            .then(function() {
+                              console.log("Increased stats active by 1");
+                            })
+                            .catch(function(error) {
+                              console.error("Increased stats active failed", error);
+                            });
+
+                      }); // end queueRef.get()
+                  } // end if sched queue doc exists
+
                 });
 
+          }); // end query.get for who has me as their target
 
-            }  // end if doc exists, original player ref
-            else {
-              console.log("Player doesn't exist on Remove Player call");
-              message.innerHTML = MESSAGE_TEXT_PLAYER_NOT_FOUND;
+      }   // end if doc exists
+      else {
+        console.log("In processVolunteer - My link in chain doesn't exist - updateChainToSkipMe.");
+        postMessage(MESSAGE_TEXT_CANT_VOLUNTEER);
+
+      }
+    });   // link ref.get()
+
+} // end function updateChainToSkipMe
+
+
+// ---------------------------------------------------------
+// Intercept Enter Key - Confirm assassination if text entered
+
+document.onkeydown = checkKey;
+
+function checkKey(evt)
+{
+  // this line of code was needed due to old browsers, possibly firefox, Nathan had an issue
+  evt = evt || window.event;
+
+  switch (evt.keyCode)
+  {
+      case ENTER_KEY:
+
+          console.log("Made it to switch, status is " + status);
+
+            switch (Number(status))
+            {
+              case PLAYER_STATUS_ACTIVE :
+
+                  // check if Target's target name field is filled
+                  if (document.getElementById("targetNameBox").value != "")
+                  {
+                    confirmAssassination();
+                  }
+                  else
+                  {
+                    postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA);
+                    return;
+                  }
+
+                break;
+
+              case PLAYER_STATUS_LOGGED_OFF :
+
+                  console.log("Player logged off");
+
+                  loginButtonClick();
+
+                  break;
+
+              case PLAYER_STATUS_REGISTERED :
+
+                      console.log("Player registered");
+
+                      if (loggedIn == false)
+                        loginButtonClick();
+
+                      break;
+
+                default:
+
+
             }
 
+          break;
 
-        }); // end player ref.get
+      default:
 
-    } // end if id not blank
-    else {
-      console.log("Invalid screen data - remove player button");
-      message.innerHTML = MESSAGE_TEXT_INVALID_SCREEN_DATA + " - Remove Player.";
-    }
+  } // end switch
 
-});  // end remove player button listener ---------------
+} // end function checkKey interceptor
 
-// End Real Features section functions -------------------------------------------
-// Start helper function section ------------------------
+// ---------------------------------------------------------
+// start function delete waiting queue
 
 function deleteQueue()
 {
@@ -2174,10 +2649,10 @@ function deleteQueue()
     players: []
   })
   .then(function() {
-    console.log("Queue delete success.");
+    console.log("Queue delete success within assassination.");
   })
   .catch(function(error) {
-    console.error("Error queue delete.", error);
+    console.error("Error queue delete within assassination.", error);
   });
 
 }
@@ -2198,349 +2673,342 @@ function deleteSchedQueue()
 
 }
 
-// ----------------------------------------------------------
+// --------------------------------------------
+// Repeatable helper functions
+// updateChainToSkipMe - called when player goes on break or quits game
 
-function deleteErrors()
+function updateChainToSkipMe()
 {
-  var errorsRef = db.collection("errors");
-  var query = errorsRef.get().then(snapshot => {
-      var batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      batch.commit();
-    })
-    .catch(err => {
-      console.log('Error getting or deleting errors documents', err);
-    });
-}  // end function deleteErrors
+    // var myTargetsID;
 
+    console.log("In updateChainToSkipMe id is " + playerId);
 
-// ----------------------------------------------------------
-
-
-function deleteChain()
-{
-  var chainRef = db.collection("chain");
-  var query = chainRef.get().then(snapshot => {
-      var batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      batch.commit();
-    })
-    .catch(err => {
-      console.log('Error getting or deleting chain documents', err);
-    });
-}  // end function deleteChain
-
-
-// -------------------------------------------------
-
-buildReportButton.addEventListener('click', function(e)
-{
-  buildReports();
-});
-
-// -------------------------------------------------
-
-function buildReports()
-{
-    var i;
-    tempChainMessage = "";
-    tempWaitingMessage = "";
-    tempScheduledMessage = "";
-    tempInactiveMessage = "";
-    tempOnBreakMessage = "";
-    tempRegisteredMessage = "";
-    tempGameOverMessage = "";
-    tempErrorsMessage = "";
-
-    document.getElementById("activeChain").innerHTML = "";
-    document.getElementById("scheduled").innerHTML = "";
-    document.getElementById("waitingAssignment").innerHTML = "";
-    document.getElementById("inactive").innerHTML = "";
-    document.getElementById("onBreak").innerHTML = "";
-    document.getElementById("registered").innerHTML = "";
-    document.getElementById("gameOver").innerHTML = "";
-    document.getElementById("errors").innerHTML = "";
-
-
-    // loop through players list, build temp messages for waiting, inactive, and break
-    db.collection("players").get().then(function(querySnapshot)
+    var linkRef = db.collection("chain").doc(playerId);
+    linkRef.get().then(function(doc)
     {
+      console.log("In updateChainToSkipMe link ref function called ");
 
-      querySnapshot.forEach(function(doc)
+      if (doc.exists) // Player is active, in the chain
       {
-          // doc.data() is never undefined for query doc snapshots
-          console.log("Looping through players queue - " + doc.id + " Status is " + doc.data().status);
+          console.log("In updateChainToSkipMe Doc exists.");
 
-          switch (doc.data().status)
+          targetId = doc.data().target;
+          console.log("In updateChainToSkipMe, my targets id is " + targetId);
+
+          // Determine which player has me as their target
+          var myAssassinsId;
+
+          // query db for the document where target = my id
+          var linksRef = db.collection("chain");
+          var query = linksRef.where("target", "==", playerId);
+
+          // update chain
+          query.get().then((snapshot) =>
           {
-              // case PLAYER_STATUS_WAITING:
-              //   tempWaitingMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", waiting assignment.<br>";
-              // break;
-              //
-              // case PLAYER_STATUS_SCHEDULED:
-              //   tempScheduledMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", scheduled.<br>";
-              // break;
+                console.log("I found the link of my assassin");
+                // only 1 always
+                myAssassinsId = snapshot.docs[0].id;
 
-            case PLAYER_STATUS_INACTIVE:
-                  tempInactiveMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", inactive.<br>";
-                break;
+                console.log("In updateChainToSkipMe, my assassin's id is " + myAssassinsId);
 
-            case PLAYER_STATUS_BREAK:
-                  tempOnBreakMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", on break.<br>";
-                break;
-
-            case PLAYER_STATUS_REGISTERED:
-                  var queueType = (doc.data().registrationType == REGISTERED_ASAP) ? "Waiting" : "Scheduled";
-                  tempRegisteredMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", registered - " + queueType + " queue.<br>";
-                break;
-
-            case PLAYER_STATUS_GAME_OVER:
-                  tempGameOverMessage += "Player: " + doc.id + " - Name: " + doc.data().name + ", game over.<br>";
-                break;
-
-            default:
-                console.log("Player status NOT waiting, inactive, or on break - id: " + doc.id + " status is " + doc.data().status);
-          }   // end switch
-
-      }); // end query snapshot for each
-
-    });  // end players .get
-
-    // get chain and build chain message
-
-    // loop through chain
-    var chainRef = db.collection("chain");
-    var query = chainRef.get().then(snapshot =>
-    {
-        snapshot.forEach(doc =>
-        {
-            console.log("Looping through chain - " + doc.id + " target is " + doc.data().target);
-
-            // create temp target variable
-            var tempId = doc.id;
-            var tempTarget = doc.data().target;
-
-            // retrieve my name from Players db
-            var myPlayerRef = db.collection("players").doc(tempId);
-            myPlayerRef.get().then(function(doc)
-            {
-                if (doc.exists)
+                // check here for paused scenario -
+                // if my target has me as their target, it must be paused
+                if (targetId == myAssassinsId)
                 {
-                    var tempName = doc.data().name;
+                  // go into paused mode
+                  console.log("Game Paused - Only 1 player active. Found within updateChainToSkipMe function.");
+                  postMessage(GAME_STATUS_PAUSED_TEXT);
 
-                    /// create a reference to the target player document to retrieve name
-                    var playerRef = db.collection("players").doc(tempTarget);
-                    playerRef.get().then(function(doc)
-                    {
-                      if (doc.exists)
-                      {
-                          tempChainMessage += "Player " + tempId + " " + tempName + " - targeting Player " + tempTarget + " " + doc.data().name + "<br>";
-                      }
-                      else {
-                        console.log("Player doc doesnt exist inside build reports");
-                      }
-                    }); // end playerRef.get function
-                  } // end if doc.exists
-                  else
+                  // Set game status to "Paused"  ---------------------------------
+                  db.collection("gameData").doc("gameData").update({
+                    status: GAME_STATUS_PAUSED
+                  })
+                  .then(function() {
+                    console.log("Set game status to Paused");
+                  })
+                  .catch(function(error) {
+                    console.error("Set game status to Paused failed", error);
+                  });
+
+                  return;
+
+                }
+
+                // not a pause scenario, Continue
+                // Get reference to the assassin that has me as their target
+                var myAssassinsLinkRef = db.collection("chain").doc(myAssassinsId);
+
+                // Check the waiting queue before rebuilding chain - get the waiting queue
+                var queueRef = db.collection("queues").doc("waiting");
+                queueRef.get().then(function(doc)
+                {
+                  // console.log("Inside queue ref up front");
+                  if (doc.exists) // waiting queue doc exists
                   {
-                    // error checking
+                      // console.log("Waiting queue Doc exists");
+                      if (doc.data().players != 0)  // bring in waiting players if queue not empty
+                      {
+                          var i;
+                          var tempArray = new Array;
+                          tempArray = doc.data().players;   // create local array to shuffle players
+
+                          for (i=0;i<tempArray.length*50;i++)
+                          {
+                            var index1 = Math.floor((Math.random() * doc.data().players.length));
+                            var index2 = Math.floor((Math.random() * doc.data().players.length));
+                            var tempPlayer = tempArray[index1];
+                            tempArray[index1] = tempArray[index2];
+                            tempArray[index2] = tempPlayer;
+                          }
+
+                          // assign the person that had me to the first person in the queue
+                          myAssassinsLinkRef.update({
+                                target: tempArray[0]
+                              })
+                              .then(function() {
+                                console.log("Players update assign my target to first in queue success.");
+                              })
+                              .catch(function(error) {
+                                console.error("Error assign my target to first in queue.", error);
+                          });
+
+                          // create the rest of the chain and activate players
+                          var i;
+                          for (i=0; i<tempArray.length-1;i++)
+                          {
+                            console.log("Iteration " + i + " within create links loop within updateChainToSkipMe")
+                            // create a link in the chain
+                            db.collection("chain").doc(tempArray[i]).set({
+                                target: tempArray[i+1]
+                              })
+                              .then(function() {
+                                console.log("Success writing to chain within updateChainToSkipMe");
+                              })
+                              .catch(function(error) {
+                                console.error("Error writing to chain  within updateChainToSkipMe", error);
+                              });
+
+                              // update player status to Active
+                              db.collection("players").doc(tempArray[i]).update({
+                                status: PLAYER_STATUS_ACTIVE
+                              })
+                              .then(function() {
+                                console.log("Players status update success within updateChainToSkipMe.");
+                              })
+                              .catch(function(error) {
+                                console.error("Error player status update to db within updateChainToSkipMe.", error);
+                              });
+
+                          } // end for loop
+
+                          // assign the target of the last player in the queue to my original target
+                          // create the last link in the chain
+                          db.collection("chain").doc(tempArray[i]).set({
+                              target: targetId
+                            })
+                            .then(function() {
+                              console.log("Success last link within updateChainToSkipMe");
+                            })
+                            .catch(function(error) {
+                              console.error("Error last link within updateChainToSkipMe", error);
+                            });
+
+                            // update last player status to Active
+                            db.collection("players").doc(tempArray[i]).update({
+                              status: PLAYER_STATUS_ACTIVE
+                            })
+                            .then(function() {
+                              console.log("Players status update success within updateChainToSkipMe.");
+                            })
+                            .catch(function(error) {
+                              console.error("Error player status update to db within updateChainToSkipMe.", error);
+                            });
+
+                            deleteQueue();
+
+                            // delete my link - Maybe move this down
+                            linkRef.delete().then(function() {
+                                console.log("my link take a break Document successfully deleted!");
+                            }).catch(function(error) {
+
+                                console.error("my link take a break Error removing document: ", error);
+                            });
+
+                      } // end if there are players in the queue
+                      else
+                      {  // queue is empty
+                          console.log("Queue is empty");
+
+                          // Assign the person that had me to my target (No players waiting)
+                          myAssassinsLinkRef.update({
+                                target: targetId
+                              })
+                              .then(function() {
+                                console.log("Players assign the person that had me to my target.");
+                              })
+                              .catch(function(error) {
+                                console.error("Error assign my target to my targets target's id.", error);
+                          });
+
+                          // delete my link
+                          linkRef.delete().then(function() {
+                              console.log("my link take a break Document successfully deleted!");
+                          }).catch(function(error) {
+
+                              console.error("my link take a break Error removing document: ", error);
+                          });
+
+                      }   // end else - queue was empty
+
+                  } // end if queue doc exists
+                  else {
+                    console.log("Queue doc doesn't exist in take a break");
                   }
 
-            }); // end myPlayerRef.get
+                });
 
-        });
-
-      })
-      .catch(err => {
-        console.log('Error getting or deleting chain documents', err);
-    });
-
-    // get the waiting queue
-    var queueRef = db.collection("queues").doc("waiting");
-    queueRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-          var i;
-
-          for (i=0;i<doc.data().players.length;i++)
-          {
-
-            var tempId = doc.data().players[i];
-
-            // retrieve my name from Players db
-            var myPlayerRef = db.collection("players").doc(tempId);
-            myPlayerRef.get().then(function(doc)
-            {
-                if (doc.exists)
-                {
-                    tempWaitingMessage += "Player " + doc.id + " - " + doc.data().name + " is waiting to enter game.<br>";
-                } // end if doc.exists
-                else
-                {
-                  // error checking
-                }
-
-            }); // end myPlayerRef.get
+          }); // need error checking
 
 
-          } // end for loop
+      }   // end if doc exists
+      else {
+        console.log("In updateChainToSkipMe - My link in chain doesn't exist - updateChainToSkipMe.");
+      }
+    });   // link ref.get()
 
-      } // end if doc exists
-    });
+} // end function updateChainToSkipMe
 
-    // get the scheduled queue
-    var scheduledQueueRef = db.collection("queues").doc("scheduled");
-    scheduledQueueRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-          var i;
+// ---------------------------------------
 
-          for (i=0;i<doc.data().players.length;i++)
-          {
-
-            var tempId = doc.data().players[i];
-
-            // retrieve my name from Players db
-            var myPlayerRef = db.collection("players").doc(tempId);
-            myPlayerRef.get().then(function(doc)
-            {
-                if (doc.exists)
-                {
-                    tempScheduledMessage += "Player " + doc.id + " - " + doc.data().name + " is scheduled to enter game.<br>";
-                } // end if doc.exists
-                else
-                {
-                  // error checking
-                }
-
-            }); // end myPlayerRef.get
-
-
-          } // end for loop
-
-      } // end if doc exists
-    });
-
-    // Retrieve Error DB
-
-    tempErrorsMessage = "";
-    var errorsDB = db.collection("errors");
-
-    var query = errorsDB.get().then(snapshot =>
-    {
-        snapshot.forEach(doc =>
-        {
-          console.log("Error - " + doc.id + " Doc data id is " + doc.data().id);
-          var timeOfError = new Date((doc.data().timeStamp).toDate());
-          tempErrorsMessage += "Player: " + doc.data().id + " .  Error Message: " + doc.data().messageText + " at " + timeOfError + " <br><br>";
-        });
-    });
-
-    document.getElementById("activeChain").innerHTML = "Reports Built...";
-
-} // end function build reports  --------------------------------------------
-
-// -------------------------------------------------------------
-
-showReportButton.addEventListener('click', function(e)
+function deletePlayer()
 {
-  showReports();
-});
+  // delete player last ------------------------------------
+  db.collection("players").doc(playerId).delete().then(function()
+  {
+    console.log("Player " + playerId + " successfully deleted!");
+  }).catch(function(error)
+  {
+        console.error("Error removing player " + playerId + " Error: ", error);
+  });
 
-// ------------------------------------------------------------
-function showReports()
-{
-      document.getElementById("activeChain").innerHTML = ACTIVE_CHAIN_LABEL + tempChainMessage;
-      document.getElementById("waitingAssignment").innerHTML = WAITING_ASSIGNMENT_LABEL + tempWaitingMessage;
-      document.getElementById("inactive").innerHTML = INACTIVE_LABEL + tempInactiveMessage;
-      document.getElementById("scheduled").innerHTML = SCHEDULED_LABEL + tempScheduledMessage;
-
-      document.getElementById("onBreak").innerHTML = ON_BREAK_LABEL + tempOnBreakMessage;
-      document.getElementById("registered").innerHTML = REGISTERED_LABEL + tempRegisteredMessage;
-      document.getElementById("gameOver").innerHTML = GAME_OVER_LABEL + tempGameOverMessage;
-      document.getElementById("errors").innerHTML = ERRORS_LABEL + tempErrorsMessage;
-
-      document.getElementById("activeChain").style.visibility = "visible";
-      document.getElementById("waitingAssignment").style.visibility = "visible";
-      document.getElementById("inactive").style.visibility = "visible";
-      document.getElementById("onBreak").style.visibility = "visible";
-      document.getElementById("registered").style.visibility = "visible";
-      document.getElementById("gameOver").style.visibility = "visible";
 }
 
-// ----------------------------------------------------------------
+// ---------------------------------------------------------
 
-function regenerateReports()
+function postEvent(inId, inMessage)
 {
-    console.log("Regenerate called");
+    console.log("Event - Id = " + inId + "  Message = " + inMessage);
 
-    if (regenerateNeeded == true)
+    // write error to db with meaningful text
+    events.add({
+      id: inId,
+      messageText: inMessage,
+      timeStamp: new firebase.firestore.Timestamp.fromDate(new Date(Date.now()))
+    })
+    .then(function(docRef) {
+        console.log("Event Document written with event ID: ", inId);
+    })
+    .catch(function(error) {
+        console.error("Event adding Error: ", error);
+    });
+
+}
+
+// ---------------------------------------
+
+function postError(inId, inMessage)
+{
+    console.log("Error - Id = " + inId + "  Message = " + inMessage);
+
+    // write error to db with meaningful text
+    errors.add({
+      id: inId,
+      messageText: inMessage,
+      timeStamp: new firebase.firestore.Timestamp.fromDate(new Date(Date.now()))
+    })
+    .then(function(docRef) {
+        console.log("Error Document written with player ID: ", inId);
+    })
+    .catch(function(error) {
+        console.error("Error adding Error document: ", error);
+    });
+
+}
+
+// ---------------------------------------
+
+function postMessage(inMessage)
+{
+    console.log("Post Message called, inMessage is " + inMessage + "  Total current messages before this one is " + messages.length);
+
+    var i;
+    // document.getElementById("messageBoard").innerHTML = "";
+
+    if (messages.length == 0)
     {
-        buildReports();
+        messages.push(inMessage);
+    }
+    else
+    {
+        // determine whether to push new message on or just shift
+        if (messages.length < SCROLLING_MESSAGE_LENGTH)
+        {
+            // console.log("Do I get here 1");
+            messages.push(messages[messages.length-1]);
 
-        // wait a little for the build
-        //setTimeout(buildReports, REPORTS_DELAY * 1000);
+            for (i=0; i<messages.length-2; i++)
+            {
 
-        // wait a little and call show reports zzz
-        setTimeout( showReports, REPORTS_DELAY * 1500);
-        regenerateNeeded = false;
+                console.log("Do I get here 2");
+                messages[messages.length-2-i] = messages[messages.length-3-i];
+            }
+        }
+        else
+        {
+            // shift all messages down 1, # of iterations is one less than the length
+            for (i=0; i<messages.length-1; i++)
+            {
+              messages[messages.length-1-i] = messages[messages.length-2-i];
+            }
+
+        }
+
+        messages[0] = inMessage;
+
+        // alert("Message is now " + messages);
+
     }
 
+
+} // end function postMessage
+
+// -----------------------------------------
+
+function buildMessageArea()
+{
+
+
+      var tempMessage = "";
+      var i;
+
+      for (i=0; i<messages.length - 1; i++)
+      {
+          tempMessage += messages[i] + "<br>";
+      }
+
+      tempMessage += messages[i];
+
+      return messageHeaderHTML + "<br>" + tempMessage;
+
 }
 
-// start function decodeGameStatus  -------------------------------
 
-function decodeGameStatus(statusPassedIn)
-{
-  switch (Number(statusPassedIn)) {
-    case GAME_STATUS_NOT_STARTED:
-      return GAME_STATUS_NOT_STARTED_TEXT;
-      break;
-
-    case GAME_STATUS_ACTIVE:
-      return GAME_STATUS_ACTIVE_TEXT;
-      break;
-
-    case GAME_STATUS_PAUSED:
-      return GAME_STATUS_PAUSED_TEXT;
-      break;
-
-    case GAME_STATUS_COMPLETED:
-      return GAME_STATUS_COMPLETED_TEXT;
-      break;
-
-
-    case GAME_STATUS_OVERNIGHT:
-      return GAME_STATUS_OVERNIGHT_TEXT;
-      break;
-
-    default:
-      return GAME_STATUS_UNKNOWN_TEXT;
-
-  }
-
-
-} // ----------------------------------------
-
-// start function decodePlayerStatus
-
-function decodePaid(paidPassedIn)
-{
-  return (paidPassedIn == 1) ? PAID : NOT_PAID;
-
-} // ----------------------------------------
-
+// ---------------------------------------------------------------
 // start function decodePlayerStatus
 
 function decodePlayerStatus(statusPassedIn)
 {
-  console.log("decode player status called - status passed in = " + decodeGameStatus(statusPassedIn));
+  // console.log("decode called - status passed in = " + statusPassedIn);
 
   switch (Number(statusPassedIn)) {
 
@@ -2552,6 +3020,10 @@ function decodePlayerStatus(statusPassedIn)
       return PLAYER_STATUS_WAITING_TEXT;
       break;
 
+    case PLAYER_STATUS_SCHEDULED:
+        return PLAYER_STATUS_SCHEDULED_TEXT;
+        break;
+
     case PLAYER_STATUS_ACTIVE:
       return PLAYER_STATUS_ACTIVE_TEXT;
       break;
@@ -2559,10 +3031,6 @@ function decodePlayerStatus(statusPassedIn)
     case PLAYER_STATUS_INACTIVE:
       return PLAYER_STATUS_INACTIVE_TEXT;
       break;
-
-    case PLAYER_STATUS_SCHEDULED:
-        return PLAYER_STATUS_SCHEDULED;
-        break;
 
     case PLAYER_STATUS_BREAK:
       return PLAYER_STATUS_BREAK_TEXT;
@@ -2577,102 +3045,461 @@ function decodePlayerStatus(statusPassedIn)
             break;
 
     default:
-      console.log("decode called - default unknown returned.  Status passed in was " + decodeGameStatus(statusPassedIn));
-      return PLAYER_STATUS_UNKNOWN_TEXT + decodeGameStatus(statusPassedIn) ;
+      console.log("decode called - default unknown returned.  Status passed in was " + statusPassedIn);
+      return PLAYER_STATUS_UNKNOWN_TEXT + statusPassedIn ;
 
   }
 
 }
 
-// ---------------------------------------
+// ---------------------------------------------------------------
+// start function decodeGameStatus
 
-function showLoginSection()
+function decodeGameStatus(statusPassedIn)
 {
-  // Show log in controls
-  var loginIDText = document.getElementById("loginIDText");
-  loginIDText.style.visibility = "visible";
+  switch (statusPassedIn)
+  {
+    case GAME_STATUS_NOT_STARTED:
+      return GAME_STATUS_NOT_STARTED_TEXT;
+      break;
 
-  var loginID = document.getElementById("loginID");
-  loginID.style.visibility = "visible";
-  loginID.value = "";
+    case GAME_STATUS_ACTIVE:
+      return GAME_STATUS_ACTIVE_TEXT;
+      break;
 
-  var loginButton = document.getElementById("loginButton");
-  loginButton.style.visibility = "visible";
+    case GAME_STATUS_COMPLETED:
+      return GAME_STATUS_COMPLETED_TEXT;
+      break;
+
+    case GAME_STATUS_PAUSED:
+      return GAME_STATUS_PAUSED_TEXT;
+      break;
+
+    case GAME_STATUS_COMPLETED:
+      return GAME_STATUS_COMPLETED_TEXT;
+      break;
+
+    case GAME_STATUS_OVERNIGHT:
+        return GAME_STATUS_OVERNIGHT_TEXT;
+        break;
+
+    default:
+      return GAME_STATUS_UNKNOWN_TEXT;
+
+  } // end switch
+
+} // end function
+
+// ---------------------------------------------------------------
+// decode file errors
+
+function decodeFileErrorCode(error, picMissing)
+{
+  // A full list of error codes is available at
+  // https://firebase.google.com/docs/storage/web/handle-errors
+  console.log("Decode File Error Code called.");
+  switch (error.code)
+  {
+    case 'storage/object-not-found':        // File doesn't exist
+
+      //console.log(MESSAGE_TEXT_FILE_NOT_FOUND + "1");     // zzzz
+      //postMessage(MESSAGE_TEXT_FILE_NOT_FOUND + "1");
+
+      if (picMissing == PIC_MISSING_TARGET)
+      {
+        // console.log("Got here - why?");
+        if (targetId != "")
+        {
+          document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + " File Not Found.";
+          document.getElementById("targetPicture").src = "";
+        }
+        // zzzz
+        // document.getElementById("messageBoardLabel").innerHTML = "";
+        //document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+      }
+      else
+        document.getElementById("myPictureLabel").innerHTML = MY_PICTURE_LABEL + " File not found.";
+      break;
+
+    case 'storage/unauthorized':
+      // User doesn't have permission to access the object
+      console.log("No permissions.");
+      break;
+
+    case 'storage/canceled':
+      console.log("Storage cancelled.");
+      // User canceled the upload
+      break;
+
+    case 'storage/unknown':
+      console.log("Unknown error");
+      // Unknown error occurred, inspect the server response
+      break;
+
+  }
+
+}  // decodeFileErrorCode
+
+// ---------------------------------------------------------
+
+function buildPlayerDataRegion()
+{
+
+    // return "<span id='myIdLabel'>My ID: </span><span id = 'myId'>"
+    //         + playerId + "</span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'>"
+    //         + name + "</span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'>" + decodePlayerStatus(status) +  "</span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'>" + owed + "</span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'>" + total + "</span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'></span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'>" + decodeGameStatus(gameStatus) + "</span>";
+
+
+                return "<span id='myIdLabel'>My ID: </span><span id = 'myId'>"
+                        + playerId + "</span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'>"
+                        + name + "</span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'>" + decodePlayerStatus(status) +  "</span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'>" + owed + "</span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'>" + total + "</span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'>" + targetName +  "</span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'>" + decodeGameStatus(gameStatus) + "</span>";
+
+
+
+
 }
 
-// ------------------------------------------
+// ---------------------------------------------------------
 
-function hideLoginSection()
+function buildPictureAreaRegion()
 {
-  // Hide log in controls
-  var loginIDText = document.getElementById("loginIDText");
-  loginIDText.style.visibility = "hidden";
+      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true))
+      {
+          return pictureAreaHTML;
+      }
+      else {
+        return "";
+      }
 
-  var loginID = document.getElementById("loginID");
-  loginID.style.visibility = "hidden";
-  loginID.value = "";
-
-  var loginButton = document.getElementById("loginButton");
-  loginButton.style.visibility = "hidden";
 }
 
-// ----------------------------------------------
+// ---------------------------------------------------------
 
-function resetInputBoxes()
+function buildStatsRegion()
 {
-  console.log("Reset input boxes called");
-  document.getElementById("idInputBox").value = "";
-  document.getElementById("nameInputBox").value = "";
-  document.getElementById("payBountiesNumber").value = "";
-  document.getElementById("playerPictureInput").value = "";
+
+  return "<div id='statsLabel'><u>Statistics:</u></div></span> <br> <span id='statsActiveLabel'>Active Players: </span><span id = 'statsActive'>" + statsActive + "<br>" +
+         "<span id='statsWaiting'>Waiting For Assignment: </span><span id = 'statsWaiting'>" + statsWaiting + "</span><br>" +
+         "<span id='statsSched'>Scheduled: </span><span id = 'statsSched'>" + statsSched + "</span><br>" +
+         "<span id='statsTotalLabel'>Total Players: </span><span id = 'statsTotal'>" + statsTotal + "</span><br>" +
+         "<span id='statsKillsLabel'>Total Kills: </span><span id = 'statsTotalKills'>" + statsTotalKills + "</span><br>" +
+         "<span id='statsTodaysLabel'>Today's Kills: </span><span id = 'statsTodaysKills'>" + statsTodaysKills + "</span><br>" +
+         "<span id='statsLeaderLabel'>Most Kills: </span><span id = 'statsCurrentLeader'>" + statsCurrentLeader;
+
 }
 
-// ----------------------------------------------
+// ---------------------------------------------------------
+// Render the ui based on the players status
 
-function showAdminDashboard()
+function renderGame(myStatus)
 {
-    // show admin fields
-    document.getElementById("approveButton").style.visibility = "visible";
+  console.log("----- Render Game called at the top status is " + decodePlayerStatus(myStatus));
 
-    document.getElementById("payBountiesNumberText").style.visibility = "visible";
-    document.getElementById("payBountiesNumber").style.visibility = "visible";
-    document.getElementById("payBountiesButton").style.visibility = "visible";
+  switch (Number(myStatus))
+  {
+    case PLAYER_STATUS_LOGGED_OFF:
 
-    document.getElementById("addNewPlayerNameText").style.visibility = "visible";
-    document.getElementById("newPlayerID").style.visibility = "visible";
-    document.getElementById("addNewPlayerIDText").style.visibility = "visible";
-    document.getElementById("newPlayerName").style.visibility = "visible";
-    document.getElementById("addNewPlayerButton").style.visibility = "visible";
+        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
 
-    document.getElementById("activeChain").style.visibility = "visible";
-    document.getElementById("waitingAssignment").style.visibility = "visible";
-    document.getElementById("inactive").style.visibility = "visible";
-    document.getElementById("onBreak").style.visibility = "visible";
+        myBody.innerHTML = headerHTML + "<br>" + loginOrRegisterHTML + "<br>" + buildMessageArea() + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+        showRules = false;
 
-    document.getElementById("bombButton").style.visibility = "visible";
-}
+        break;
 
-// ---------------------------------------------
+    case PLAYER_STATUS_WAITING:
 
-function hideAdminDashboard()
-{
-    // hide admin fields
-    document.getElementById("approveButton").style.visibility = "hidden";
+        postMessage(MESSAGE_TEXT_WAITING);
 
-    document.getElementById("payBountiesNumberText").style.visibility = "hidden";
-    document.getElementById("payBountiesNumber").style.visibility = "hidden";
-    document.getElementById("payBountiesButton").style.visibility = "hidden";
+        var tempBody;
+        var tempButtonBar;
+        var tempViewMyPicArea = "";
+        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
 
-    document.getElementById("addNewPlayerNameText").style.visibility = "hidden";
-    document.getElementById("newPlayerID").style.visibility = "hidden";
-    document.getElementById("addNewPlayerIDText").style.visibility = "hidden";
-    document.getElementById("newPlayerName").style.visibility = "hidden";
-    document.getElementById("addNewPlayerButton").style.visibility = "hidden";
+        buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML;
 
-    document.getElementById("activeChain").style.visibility = "hidden";
-    document.getElementById("waitingAssignment").style.visibility = "hidden";
-    document.getElementById("inactive").style.visibility = "hidden";
-    document.getElementById("onBreak").style.visibility = "hidden";
+        if (showMyPic == true)
+        {
+            tempViewMyPicArea = myPictureAreaHTML;
+        }
 
-    document.getElementById("bombButton").style.visibility = "hidden";
+        tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+        myBody.innerHTML = tempBody;
+
+        document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+        if (showMyPic == true)
+        {
+            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+            document.getElementById("myPicture").src = myURL;
+        }
+
+        showRules = false;
+
+        break;
+
+    case PLAYER_STATUS_SCHEDULED:
+
+        postMessage(MESSAGE_TEXT_SCHEDULED);
+
+        var tempBody;
+        var tempViewMyPicArea = "";
+        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
+
+        buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML;
+
+        if (showMyPic == true)
+        {
+            tempViewMyPicArea = myPictureAreaHTML;
+        }
+
+        tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+        myBody.innerHTML = tempBody;
+
+        document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+        if (showMyPic == true)
+        {
+            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+            document.getElementById("myPicture").src = myURL;
+        }
+
+        showRules = false;
+
+        break;
+
+    case PLAYER_STATUS_ACTIVE:
+
+              var tempBody;
+              var tempViewMyPicArea = "";
+              var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
+              var tempVolunteer = (volunteerNeeded == true) ? volunteerButtonHTML : "";
+
+              buttonStripRegion = "<br>" + logOffButtonHTML + " &nbsp " + takeABreakButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " +  rulesButtonHTML + " &nbsp " + quitGameButtonHTML + " &nbsp " + tempVolunteer; // + " &nbsp " + quitGameButtonHTML;
+
+              if (showMyPic == true)
+              {
+                  tempViewMyPicArea = myPictureAreaHTML;
+              }
+
+              tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br><br>" + myTargetDataHTML  + "<br>" + confirmKillHTML + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+              myBody.innerHTML = tempBody;
+
+              document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+              if (showMyPic == true)
+              {
+                  document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+                  document.getElementById("myPicture").src = myURL;
+              }
+
+              if (targetId != "")
+              {
+
+                    // get my target's name and update screen
+                    // create a reference to my target's player record
+                    var myTargetsPlayerRef = db.collection("players").doc(targetId);
+                    // line above blows up when link is deleted and there is no data.
+
+                    myTargetsPlayerRef.get().then(function(doc)
+                    {
+                      if (doc.exists)
+                      {
+                          targetName = doc.data().name;
+                          console.log("Doc exists for my target - Name is " + targetName + "  Target id is " + targetId + "  Rest is " + String(targetId) + "/" + doc.data().pictureName);
+
+                          // target = doc.data().name;  // not sure if I need this
+                          // rely on renderGame for update to screen
+                          document.getElementById("myTargetsName").innerHTML = targetName;
+
+                          // alert("pic name - " + doc.data().pictureName);
+
+                          // if (doc.data().pictureName == "")
+                          // {
+                          //     console.log("New section - pic not found");
+                          //     // postMessage(MESSAGE_TEXT_FILE_NOT_FOUND);
+                          //     // renderGame(status);
+                          //     // return;
+                          //
+                          // }
+
+
+                          // update my targets picture - I need targetID and the filename from the player record
+                          var myTargetsPictureRef = storageRef.child(String(targetId) + "/" + doc.data().pictureName);
+
+                          myTargetsPictureRef.getDownloadURL().then(function(url)
+                          {
+                            console.log("getDownloadURL worked in render game status active - targets picture");
+                            // document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL; // yyy
+
+                            document.getElementById("targetPicture").src = url;
+                            document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + "<br>";
+
+                          }).catch(function(error)
+                            {
+
+                              if (targetId != "")
+                              {
+                                document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + " File Not Found.";
+                                document.getElementById("targetPicture").src = "";
+                              }
+
+                              //
+                              //
+                              //
+                              // // zzzzz
+                              //
+                              // console.log("Missing pic from render game, status active  -- target name is " + targetName + " target id is " + targetId);
+                              //
+                              // decodeFileErrorCode(error, PIC_MISSING_TARGET);
+                              // document.getElementById("targetPicture").innerHTML = "";
+                              // document.getElementById("targetPicture").src = "";
+
+                            } // end catch error
+
+                          );
+
+                        } // end if my targets player ref doc exists
+                        else {
+                          // my target's player record doesn't exist
+                        }
+                    }); // end .get on target's player record
+
+              }
+
+              showRules = false;
+
+        break;
+
+    case PLAYER_STATUS_INACTIVE:
+
+            var tempBody;
+            var tempBuyBack;
+            var tempViewMyPicArea = "";
+            var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
+
+            if (owed > 0)
+                tempBuyBack = buyBackInButtonHTML;
+            else
+              tempBuyBack = "";
+
+            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + tempBuyBack + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
+
+            if (showMyPic == true)
+            {
+                tempViewMyPicArea = myPictureAreaHTML;
+            }
+
+            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+            myBody.innerHTML = tempBody;
+
+            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+            document.getElementById("myTargetsName").innerHTML = "";
+
+            if (showMyPic == true)
+            {
+                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+                document.getElementById("myPicture").src = myURL;
+            }
+
+            showRules = false;
+
+            break;
+
+      case PLAYER_STATUS_BREAK:
+
+            var tempBody;
+            var tempViewMyPicArea = "";
+            var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
+
+            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + returnFromBreakButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
+
+            if (showMyPic == true)
+            {
+                tempViewMyPicArea = myPictureAreaHTML;
+            }
+
+            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+            myBody.innerHTML = tempBody;
+
+            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+            if (showMyPic == true)
+            {
+                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+                document.getElementById("myPicture").src = myURL;
+            }
+
+            showRules = false;
+
+            break;
+
+    case PLAYER_STATUS_REGISTERED:
+
+      // 2 cases, registered before log in or after log in
+        var tempViewMyPicArea = "";
+        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
+
+        if (showMyPic == true)
+        {
+            tempViewMyPicArea = myPictureAreaHTML;
+        }
+
+        if (loggedIn == true)
+        {
+            var tempBody;
+
+            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
+
+            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br><br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+            myBody.innerHTML = tempBody;
+
+            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+            if (showMyPic == true)
+            {
+                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+                document.getElementById("myPicture").src = myURL;
+            }
+
+        }
+        else
+        {
+              loginRegion = loginOrRegisterHTML;
+              buttonStripRegion = "";
+
+              myBody.innerHTML = headerHTML + "<br>" + loginOrRegisterHTML + "<br> " + buildMessageArea() + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
+
+              document.getElementById("idInputBox").value = playerId;
+
+              if (showMyPic == true)
+              {
+                  document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+                  document.getElementById("myPicture").src = myURL;
+              }
+
+        }
+
+        showRules = false;
+
+        break;
+
+    case PLAYER_STATUS_GAME_OVER:
+
+          myBody.innerHTML = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br>" + logOffButtonHTML + "<br><br>" + buildStatsRegion() + "<br><br>" + RULES_TEXT;
+
+          document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+
+          break;
+
+    default:
+      console.log("Render game called, default status is " + decodePlayerStatus(myStatus));
+
+  }  // end switch on my status
+
 }
