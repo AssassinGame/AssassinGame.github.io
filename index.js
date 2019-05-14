@@ -52,7 +52,9 @@ const REGISTERED_ASAP = 0;      // enter game as soon as possible
 const REGISTERED_SCHEDULED = 1; // wait to enter game until scheduled start
 
 // Screen labels
-const MY_TARGETS_PICTURE_LABEL = "My Target's Picture: <br>";
+const MY_TARGETS_PICTURE_LABEL_PART1 = "My Target ";
+const MY_TARGETS_PICTURE_LABEL_PART2 = "'s Picture: <br>";
+
 const MY_PICTURE_LABEL = "My Picture:"
 const CONFIRM_KILL_LABEL = "Name of your target's target: ";
 
@@ -97,7 +99,7 @@ const PIC_MISSING_TARGET = 1;
 const PIC_MISSING_MINE = 2;
 
 // Message Text Constants - Find similar and clean up.
-const MESSAGE_TEXT_WELCOME = "Welcome to Assassin.  Enter ID and click Login or Enter your real name and click Register.";
+const MESSAGE_TEXT_WELCOME = "Welcome to Assassin.  Enter ID and click Login -OR- Enter your real name and click Register.";
 const MESSAGE_TEXT_GAME_START = "The game starts Wed. June 19 at Noon ET.";
 
 const MESSAGE_TEXT_LOGIN = "Successul log in.";
@@ -140,14 +142,14 @@ const MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK = "Too early to return from br
 const MESSAGE_TEXT_CANT_TAKE_BREAK = "You can only take a break when active.";
 const MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK = "You are not on break.  Can't return.";
 const MESSAGE_TEXT_VOLUNTEER_FILLED = "Volunteer request filled.";
-const MESSAGE_TEXT_NEXT_START = "The next scheduled start is ";
+const MESSAGE_TEXT_NEXT_START = "The next scheduled wave of new players starts at ";
 const MESSAGE_TEXT_GAME_STATUS_OVERNIGHT = "Game Paused Until Morning. Restart at ";
 const MESSAGE_TEXT_SEE_RULES_BELOW = "Scroll down to view rules below statistics.";
 const MESSAGE_TEXT_BOMB_DROPPED = "Bomb dropped!  Check for a new target.";
 // const GAME_FUNCTION_DISABLED_OVERNIGHT = "";
 
 
-var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol> <li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>The game begins Wednesday at Noon and ends Saturday at 9:00 pm.</li><li>No assassinations are valid between 9 AM and 9 PM.</li><li>Contact the admin, Jon Pawelko, on the Whova App – PorcFest event if you have any questions.  You can post general messages on the Whova – PorcFest – Assassin group.</li><li>When you first register and your picture is approved, you will be placed in the Waiting Queue.  This may be before the game starts or during the game if you joined while the game was in progress.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you about you being their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>When your status changes to Active, you will see the name and picture of your target on this website.  Once you are Active and have a target, you begin playing.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb” and all target assignments will be reshuffled.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 kills and above, capped at $10.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the conversation that starts with 'I just killed you' does not happen.</li></ol>";
+var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol> <li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>The game begins Wednesday at Noon and ends Saturday at 9:00 pm.</li><li>Ages 13 and up.</li><li>No assassinations are valid between 9 AM and 9 PM.</li><li>Contact the admin, Jon Pawelko, on the Whova App – PorcFest event if you have any questions.  You can post general messages on the Whova – PorcFest – Assassin group.</li><li>When you first register and your picture is approved, you will be placed in the Waiting Queue.  This may be before the game starts or during the game if you joined while the game was in progress.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you about you being their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>When your status changes to Active, you will see the name and picture of your target on this website.  Once you are Active and have a target, you begin playing.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb” and all target assignments will be reshuffled.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 kills and above, capped at $10.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the conversation that starts with 'I just killed you' does not happen.</li></ol>";
 
 
 // ----- Initialize Firebase -----------------------------------------------------
@@ -226,7 +228,7 @@ var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButton
 var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()'>Take a Break</button>";
 var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()'>Return From Break</button>";
 
-var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()'>Upload Your Picture</button><br> <br>";
+var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button, then click Upload</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()'>Upload</button><br> <br>";
 var myPictureAreaHTML = "<div id='myPictureLabel'></div> <img id='myPicture' src=''>";
 var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()'>View My Picture</button>";
 var rulesRegionHTML = "<u>Rules: </u><br><br>Here are the rules";
@@ -348,6 +350,7 @@ gameDataRef.get().then(function(doc)
   {
     console.log("Game Data Retrieval error, sometimes happens even though no issue");
     postMessage(MESSAGE_TEXT_FATAL_ERROR);
+    renderGame(status);
     postError(playerId,ERROR_GAME_DATA_REF_DOESNT_EXIST);
   }
 }).catch(function(error) {
@@ -385,7 +388,6 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
 
           // document.getElementById("volunteerButton").style.visibility = "hidden";  // yyy
         }
-
 
         console.log("Bomb dropped current = " + bombDropped + "  Bomb dropped from db = " + doc.data().bombDropped);
 
@@ -2321,7 +2323,8 @@ function volunteerButtonClick()
     // if (answer == false)
     //   return;
     //
-    // iVolunteered = true;
+
+    iVolunteered = true;
 
     // console.log("Got hereeeee");
 
@@ -2750,6 +2753,7 @@ function updateChainToSkipMe()
     console.log("In updateChainToSkipMe id is " + playerId);
 
     var linkRef = db.collection("chain").doc(playerId);
+
     linkRef.get().then(function(doc)
     {
       console.log("In updateChainToSkipMe link ref function called ");
@@ -2968,7 +2972,12 @@ function updateChainToSkipMe()
       else {
         console.log("In updateChainToSkipMe - My link in chain doesn't exist - updateChainToSkipMe.");
       }
-    });   // link ref.get()
+    }).catch(function(error) {
+      console.log("updateChainToSkipMe link ref error getting looking for my link in the chain");
+      //postMessage(MESSAGE_TEXT_FATAL_ERROR);
+      postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
+      //console.log("Error getting gameRefData.get() document:", error);
+      });
 
 } // end function updateChainToSkipMe
 
@@ -3260,7 +3269,7 @@ function decodeFileErrorCode(error, picMissing)
         // console.log("Got here - why?");
         if ((targetId != "") && (gameStatus != GAME_STATUS_PAUSED) && (gameStatus != GAME_STATUS_COMPLETED))
         {
-          document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + " File Not Found.";
+          document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
           document.getElementById("targetPicture").src = "";
 
           // console.log("File not found errror  ------------");
@@ -3497,7 +3506,7 @@ function renderGame(myStatus)
                             // document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL; // yyy
 
                             document.getElementById("targetPicture").src = url;
-                            document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + "<br>";
+                            document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2  + "<br>";
 
                           }).catch(function(error)
                             {
@@ -3505,7 +3514,7 @@ function renderGame(myStatus)
                               if ((targetId != "") && (gameStatus != GAME_STATUS_PAUSED) && (gameStatus != GAME_STATUS_COMPLETED))
                               {
                                 // console.log("Game status at this point is -------- " + decodeGameStatus(gameStatus));
-                                document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL + " File Not Found.";
+                                document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
                                 document.getElementById("targetPicture").src = "";
 
                                 console.log("File not found errror2  ------------");
@@ -3593,8 +3602,10 @@ function renderGame(myStatus)
             }
 
             document.getElementById("myTargetsName").innerHTML = "";
+
             targetName = "";
-            targetId = "";
+            // console.log("You are looking for this --------------------------");
+            //targetId = "";
             showRules = false;
 
             break;
