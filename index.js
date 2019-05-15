@@ -132,8 +132,11 @@ const MESSAGE_TEXT_SCHEDULED = "You are scheduled to enter the game.";
 const MESSAGE_TEXT_FATAL_ERROR = "Fatal Error - Connection to DB.  Contact Admin.";
 const MESSAGE_TEXT_UPLOAD_PIC_FAILED = "Upload picture failed.";
 const MESSAGE_TEXT_UPLOAD_PIC_SUCCESS = "Upload picture success."
-// const MESSAGE_TEXT_FILE_NOT_FOUND = "File not found."
+const MESSAGE_TEXT_PIC_APPROVED = "Your picture has been approved by the Admin.";
+const MESSAGE_TEXT_FILE_NOT_FOUND = "File not found."
 const MESSAGE_TEXT_TARGET_FILE_NOT_FOUND = "Target file not found."
+const MESSAGE_TEXT_MY_FILE_NOT_FOUND = "You have not uploaded a picture yet.  Click browse to choose a picture, then the Upload button.";
+
 // const MESSAGE_TEXT_PICTURE_NOT_FOUND = "My Picture file not found.";
 // const MESSAGE_TEXT_TARGET_PICTURE_NOT_FOUND = "Target Picture Not Found.";
 const MESSAGE_TEXT_VOLUNTEER_NEEDED = "Click the volunteer button to exit the game with a refund of 1 bounty.";
@@ -149,7 +152,7 @@ const MESSAGE_TEXT_BOMB_DROPPED = "Bomb dropped!  Check for a new target.";
 // const GAME_FUNCTION_DISABLED_OVERNIGHT = "";
 
 
-var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol> <li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>The game begins Wednesday at Noon and ends Saturday at 9:00 pm.</li><li>Ages 13 and up.</li><li>No assassinations are valid between 9 AM and 9 PM.</li><li>Contact the admin, Jon Pawelko, on the Whova App – PorcFest event if you have any questions.  You can post general messages on the Whova – PorcFest – Assassin group.</li><li>When you first register and your picture is approved, you will be placed in the Waiting Queue.  This may be before the game starts or during the game if you joined while the game was in progress.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you about you being their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>When your status changes to Active, you will see the name and picture of your target on this website.  Once you are Active and have a target, you begin playing.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb” and all target assignments will be reshuffled.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 kills and above, capped at $10.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the conversation that starts with 'I just killed you' does not happen.</li></ol>";
+var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol><li>The game begins Wednesday, June 19 at Noon and ends Saturday at 9:00 pm.</li><li>Register for the game by entering your real name and clicking Register.  An ID will be generated for you, please record it somewhere. Then log in and upload your picture.  Your ID may be saved in the browser.</li><li>You can also register and pay the $5 entry in person with the Admin, Jon Pawelko, at PorcFest (Guy with the orange backpack).  Please reduce bandwidth bottlenecks at PorcFest by registering and uploading your picture ahead of time.</li><li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>Ages 13 and up.</li><li>Water guns are $1 or you can bring your own.  However, water guns are not required.  You can use any method to assassinate your target.</li><li>The game will be paused nightly.  No assassinations are valid between 9 PM and 9 AM.</li><li>Contact Jon through the PorcFest event on the Whova App if you have any questions or issues.  You can post general messages on the Whova – PorcFest Assassin Group.</li><li>Once you are registered, paid, and your picture is approved, you will be placed in the Waiting Queue.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you into thinking you are their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>You are officially playing in the game when your status changes to Active.  You will see the name and picture of your target on this website when you are logged in.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>Log your successful assassination on the website by entering the name of your Target's Target and clicking the 'Confirm Assassination' button.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb”.  This will release all Waiting players into the game and re-shuffle all target assignments.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.  Targets can douse their assassin at any time to reset the 60 minute safe period.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers that choose to join ASAP are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.  If you are in the Waiting Queue, it is your responsibility to check for status frequently as you may be entering the game at any time.  If you don't want to enter ASAP, see the following 'Scheduled' feature when you register.  </li><li>A new feature this year allows you to enter a running game at a specific time using the 'Scheduled' start registration.  The message under the registration area shows the next scheduled start time.  Set your phone alarm for this time to remind yourself you're in the game.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 assassinations and above, capped at $5.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the assassination is successful.</li></ol>";
 
 
 // ----- Initialize Firebase -----------------------------------------------------
@@ -239,6 +242,9 @@ var name = "";
 var status = PLAYER_STATUS_LOGGED_OFF;  // player status
 var loggedIn = false;
 var iVolunteered = false;
+var myPicApproved = false;
+var myPicFileName = "";
+
 var showMyPic = false;
 var myURL = "";
 var owed = 0;
@@ -247,7 +253,6 @@ var targetName = "";
 var targetId = "";
 var nameOfTargetsTarget = "";
 var myLinkRef; // reference to my link in the chain
-var myPicFileName = "";
 var bombAlerted = 0;  // specific to the player
 var showRules = false;
 var statsOnlyChange = false;
@@ -819,7 +824,7 @@ function registerButtonClick()
 function loginButtonClick()
 {
     targetId = "";
-    getScreenData();  // yyyy
+    getScreenData();
 
     if (playerId == "")
     {
@@ -910,6 +915,12 @@ function loginButtonClick()
                   {
                     console.log("My picture file name changed.");
                     myPicFileName = doc.data().pictureName;
+                  }
+
+                  if ((myPicApproved == false) && (doc.data().pictureApproved == 1))
+                  {
+                    myPicApproved = true;
+                    postMessage(MESSAGE_TEXT_PIC_APPROVED);
                   }
 
                   if (status == PLAYER_STATUS_GAME_OVER)    // zzzz
@@ -1209,7 +1220,7 @@ function logoffUser()
     // gameDataUnsubscribe();
     // gameDataUnsubscribe = "";
 
-    if (status == PLAYER_STATUS_ACTIVE) // yyyy
+    if (status == PLAYER_STATUS_ACTIVE)
     {
         console.log("Link unsubscribe called because I was active");
         // detach from chain listener
@@ -1229,6 +1240,7 @@ function logoffUser()
     myPicFileName = "";
     loggedIn = false;
     iVolunteered = false;
+    myPicApproved = false;
     myRegistrationType = "";
     showMyPic = false;
     myURL = "";
@@ -2066,9 +2078,10 @@ function viewMyPictureButtonClick()
 
       }).catch(function(error)
         {
-          decodeFileErrorCode(error,PIC_MISSING_MINE);
+          // decodeFileErrorCode(error,PIC_MISSING_MINE);
           console.log("View my picture failed");
-          // document.getElementById("myPicture").src = "";
+          postMessage(MESSAGE_TEXT_MY_FILE_NOT_FOUND);
+          renderGame(status);
           postError(playerId, PIC_MISSING_MINE);
         });  // end catch
 
@@ -3318,7 +3331,7 @@ function buildPlayerDataRegion()
 
 function buildPictureAreaRegion()
 {
-      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true))
+      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true) && (myPicApproved == false))
       {
           return pictureAreaHTML;
       }
@@ -3618,8 +3631,12 @@ function renderGame(myStatus)
 
         if (showMyPic == true)
         {
-            tempViewMyPicArea = myPictureAreaHTML;
+            tempViewMyPicArea = myPictureAreaHTML;    // yyyy
         }
+
+
+// pictureAreaHTML
+
 
         if (loggedIn == true)
         {
