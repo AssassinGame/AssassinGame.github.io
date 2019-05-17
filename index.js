@@ -246,7 +246,7 @@ var name = "";
 var status = PLAYER_STATUS_LOGGED_OFF;  // player status
 var loggedIn = false;
 var iVolunteered = false;
-var myPicApproved = false;
+var myPicApproved = 0;
 var myPicFileName = "";
 
 var showMyPic = false;
@@ -893,7 +893,7 @@ function loginButtonClick()
         total = doc.data().total;
         loggedIn = true;
         bombAlerted = doc.data().bombAlerted;
-        myPicApproved = doc.data().myPicApproved;
+        myPicApproved = doc.data().pictureApproved;
 
         if ((bombDropped == 1) && (bombAlerted == 0))
         {
@@ -930,9 +930,9 @@ function loginButtonClick()
                     myPicFileName = doc.data().pictureName;
                   }
 
-                  if ((myPicApproved == false) && (doc.data().pictureApproved == 1))
+                  if ((myPicApproved == 0) && (doc.data().pictureApproved == 1))
                   {
-                    myPicApproved = true;
+                    myPicApproved = 1;
                     postMessage(MESSAGE_TEXT_PIC_APPROVED);
                   }
 
@@ -1253,7 +1253,7 @@ function logoffUser()
     myPicFileName = "";
     loggedIn = false;
     iVolunteered = false;
-    myPicApproved = false;
+    myPicApproved = 0;
     myRegistrationType = "";
     showMyPic = false;
     myURL = "";
@@ -3394,7 +3394,7 @@ function buildPlayerDataRegion()
 
 function buildPictureAreaRegion()
 {
-      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true) && (myPicApproved == false))
+      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true) && (myPicApproved == 0))
       {
           return pictureAreaHTML;
       }
@@ -3425,25 +3425,29 @@ function buildStatsRegion()
 function checkToResizePicture()
 {
 
+          console.log("checktoResizePicture timer called ------------------------");
           // check to resize target picture
 
-          var targetImage = document.getElementById('targetPicture');
-
-          var tempWidth = targetImage.clientWidth;
-          var tempHeight = targetImage.clientHeight;
-
-          var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
-          var factor2 = 1/factor1;
-
-          // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
-          if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
+          if (status == PLAYER_STATUS_ACTIVE)
           {
-            targetImage.width = tempWidth * factor2;
-            targetImage.height = tempHeight * factor2;
-          }
-          else
-          {
-            picResizeTimer = setTimeout(checkToResizePicture, 100);
+              var targetImage = document.getElementById('targetPicture');
+
+              var tempWidth = targetImage.clientWidth;
+              var tempHeight = targetImage.clientHeight;
+
+              var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
+              var factor2 = 1/factor1;
+
+              // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
+              if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
+              {
+                targetImage.width = tempWidth * factor2;
+                targetImage.height = tempHeight * factor2;
+              }
+              else
+              {
+                picResizeTimer = setTimeout(checkToResizePicture, 100);
+              }
           }
 
 }
@@ -3742,9 +3746,6 @@ function renderGame(myStatus)
         {
             tempViewMyPicArea = myPictureAreaHTML;    // yyyy
         }
-
-
-// pictureAreaHTML
 
 
         if (loggedIn == true)
