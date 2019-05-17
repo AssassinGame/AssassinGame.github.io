@@ -279,6 +279,7 @@ var statsTodaysKills = 0;   // zzz - need to have reset each day
 var statsCurrentLeader = 0;
 
 var picResizeTimer;
+var picResizeTimer2;
 
 // unsubscribe global vars
 var playerUnsubscribe;  // var to store player subscription, needed for later unSubscribe
@@ -3422,10 +3423,42 @@ function buildStatsRegion()
 
 // ------------------------------------------------
 
-function checkToResizePicture()
+function checkToResizeMyPicture()
 {
 
-          console.log("checktoResizePicture timer called ------------------------");
+    console.log("checkToResizeMyPicture timer called ------------------------");
+    // check to resize target picture
+
+    if (status == PLAYER_STATUS_ACTIVE)
+    {
+        var targetImage = document.getElementById('myPicture');
+
+        var tempWidth = targetImage.clientWidth;
+        var tempHeight = targetImage.clientHeight;
+
+        var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
+        var factor2 = 1/factor1;
+
+        // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
+        if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
+        {
+          targetImage.width = tempWidth * factor2;
+          targetImage.height = tempHeight * factor2;
+        }
+        else
+        {
+          picResizeTimer = setTimeout(checkToResizeMyPicture, 100);
+        }
+    }
+
+}
+
+// ------------------------------------------------
+
+function checkToResizeTargetPicture()
+{
+
+          console.log("checkToResizeTargetPicture timer called ------------------------");
           // check to resize target picture
 
           if (status == PLAYER_STATUS_ACTIVE)
@@ -3446,11 +3479,32 @@ function checkToResizePicture()
               }
               else
               {
-                picResizeTimer = setTimeout(checkToResizePicture, 100);
+                picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);
               }
           }
 
 }
+
+// --------------------------------------
+
+function showMyPicIfNecessary()
+{
+        if (showMyPic == true)
+        {
+            document.getElementById("myPicture").style.visibility = "hidden";
+
+            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+            document.getElementById("myPicture").src = myURL;
+
+            // kick off timer process to check picture size
+            picResizeTimer2 = setTimeout(checkToResizeMyPicture, 100);   // run timed function in .1 seconds
+
+            document.getElementById("myPicture").style.visibility = "visible";
+
+        }
+
+}
+
 
 // ---------------------------------------------------------
 // Render the ui based on the players status
@@ -3503,11 +3557,9 @@ function renderGame(myStatus)
 
         document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
-        if (showMyPic == true)
-        {
-            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-            document.getElementById("myPicture").src = myURL;
-        }
+        showMyPicIfNecessary();
+
+        // yyyy
 
         showRules = false;
 
@@ -3534,11 +3586,7 @@ function renderGame(myStatus)
 
         document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
-        if (showMyPic == true)
-        {
-            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-            document.getElementById("myPicture").src = myURL;
-        }
+        showMyPicIfNecessary();
 
         showRules = false;
 
@@ -3583,11 +3631,7 @@ function renderGame(myStatus)
 
               document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
-              if (showMyPic == true)
-              {
-                  document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-                  document.getElementById("myPicture").src = myURL;
-              }
+              showMyPicIfNecessary();
 
               if (targetId != "")
               {
@@ -3621,18 +3665,9 @@ function renderGame(myStatus)
 
 
                             // kick off timer process to check picture size
-
-                            // yyyy
-
-
-                            picResizeTimer = setTimeout(checkToResizePicture, 100);
+                            picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);   // run timed function in .1 seconds
 
                             document.getElementById("targetPicture").style.visibility = "visible";
-
-                            // //or however you get a handle to the IMG
-                            // var width = img.clientWidth;
-                            // var height = img.clientHeight;
-
 
                           }).catch(function(error)
                             {
@@ -3692,11 +3727,7 @@ function renderGame(myStatus)
             document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
             document.getElementById("myTargetsName").innerHTML = "";
 
-            if (showMyPic == true)
-            {
-                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-                document.getElementById("myPicture").src = myURL;
-            }
+            showMyPicIfNecessary();
 
             showRules = false;
 
@@ -3721,11 +3752,7 @@ function renderGame(myStatus)
 
             document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
-            if (showMyPic == true)
-            {
-                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-                document.getElementById("myPicture").src = myURL;
-            }
+            showMyPicIfNecessary();
 
             document.getElementById("myTargetsName").innerHTML = "";
 
@@ -3744,7 +3771,7 @@ function renderGame(myStatus)
 
         if (showMyPic == true)
         {
-            tempViewMyPicArea = myPictureAreaHTML;    // yyyy
+            tempViewMyPicArea = myPictureAreaHTML;
         }
 
 
@@ -3760,11 +3787,7 @@ function renderGame(myStatus)
 
             document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
-            if (showMyPic == true)
-            {
-                document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-                document.getElementById("myPicture").src = myURL;
-            }
+            showMyPicIfNecessary();
 
         }
         else
