@@ -2,12 +2,14 @@
 
 const FIRESTORE_DB_1 = 1;
 const FIRESTORE_DB_2 = 2;
-//var firebaseDB = FIRESTORE_DB_1;
-var firebaseDB = FIRESTORE_DB_2;
+var firebaseDB = FIRESTORE_DB_1;
+// var firebaseDB = FIRESTORE_DB_2;
 
 const ENTER_KEY = 13; // intercept enter key for default processing
 const PLAYER_ID_LENGTH = 8;   // length of player id
 const SCROLLING_MESSAGE_LENGTH = 3;
+const PICTURE_SIZE_LOWER_SIZE = 500;
+const PICTURE_SIZE_UPPER_SIZE = 550;
 
 const SYSTEM_ID = "SYSTEM";
 
@@ -21,6 +23,7 @@ const GAME_STATUS_PAUSED = 2;
 const GAME_STATUS_COMPLETED = 3;
 const GAME_STATUS_UNKNOWN = 4;
 const GAME_STATUS_OVERNIGHT =5;
+const GAME_STATUS_MAINTENANCE =6;
 
 const GAME_STATUS_NOT_STARTED_TEXT = "Not Started";
 const GAME_STATUS_ACTIVE_TEXT = "Active";
@@ -28,6 +31,7 @@ const GAME_STATUS_PAUSED_TEXT = "Paused";
 const GAME_STATUS_COMPLETED_TEXT = "Completed";
 const GAME_STATUS_UNKNOWN_TEXT = "Unknown Status";
 const GAME_STATUS_OVERNIGHT_TEXT = "Game Paused at Night";
+const GAME_STATUS_MAINTENANCE_TEXT = "Game Paused, System Maintenance.";
 
 // Player status constants
 const PLAYER_STATUS_LOGGED_OFF = 0;
@@ -273,6 +277,8 @@ var statsActive = 0;
 var statsTotalKills = 0;
 var statsTodaysKills = 0;   // zzz - need to have reset each day
 var statsCurrentLeader = 0;
+
+var picResizeTimer;
 
 // unsubscribe global vars
 var playerUnsubscribe;  // var to store player subscription, needed for later unSubscribe
@@ -652,6 +658,12 @@ function getScreenData()
 function registerButtonClick()
 {
 
+    if (gameStatus == GAME_STATUS_MAINTENANCE)
+    {
+      alert(GAME_STATUS_MAINTENANCE_TEXT);
+      return;
+    }
+
     getScreenData();
     playerId = "";
 
@@ -881,6 +893,7 @@ function loginButtonClick()
         total = doc.data().total;
         loggedIn = true;
         bombAlerted = doc.data().bombAlerted;
+        myPicApproved = doc.data().myPicApproved;
 
         if ((bombDropped == 1) && (bombAlerted == 0))
         {
@@ -1264,6 +1277,12 @@ function confirmAssassinationButtonClick()
     if (gameStatus == GAME_STATUS_OVERNIGHT)
     {
       alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
+      return;
+    }
+
+    if (gameStatus == GAME_STATUS_MAINTENANCE)
+    {
+      alert(GAME_STATUS_MAINTENANCE_TEXT);
       return;
     }
 
@@ -1663,6 +1682,13 @@ function confirmAssassination()
 function buyBackInButtonClick()
 {
 
+
+  if (gameStatus == GAME_STATUS_MAINTENANCE)
+  {
+    alert(GAME_STATUS_MAINTENANCE_TEXT);
+    return;
+  }
+
   var answer = confirm("Are you sure you want to buy back in?");
 
   if (answer == false)
@@ -1758,6 +1784,13 @@ function buyBackInButtonClick()
 function takeABreakButtonClick()
 {
 
+
+  if (gameStatus == GAME_STATUS_MAINTENANCE)
+  {
+    alert(GAME_STATUS_MAINTENANCE_TEXT);
+    return;
+  }
+
   var answer = confirm("Are you sure you want to take a break?  You will be eligible to return in " + (minBreakLength/60) + " hours.");
 
   if (answer == false)
@@ -1847,6 +1880,12 @@ function takeABreakButtonClick()
 
 function returnFromBreakButtonClick()
 {
+
+  if (gameStatus == GAME_STATUS_MAINTENANCE)
+  {
+    alert(GAME_STATUS_MAINTENANCE_TEXT);
+    return;
+  }
 
   var answer = confirm("Are you sure you want to return from break?");
 
@@ -1959,6 +1998,12 @@ function returnFromBreakButtonClick()
 
 function uploadPictureButtonClick()
 {
+
+    if (gameStatus == GAME_STATUS_MAINTENANCE)
+    {
+      alert(GAME_STATUS_MAINTENANCE_TEXT);
+      return;
+    }
 
     var fileChosen = document.getElementById("playerPictureInput");
     var curFiles = fileChosen.files;
@@ -2093,6 +2138,13 @@ function viewMyPictureButtonClick()
 
 function quitGameButtonClick()
 {
+
+    if (gameStatus == GAME_STATUS_MAINTENANCE)
+    {
+      alert(GAME_STATUS_MAINTENANCE_TEXT);
+      return;
+    }
+
     console.log("Quit game called");
     // var myTargetsID;  // save this for later use if nec
 
@@ -2328,6 +2380,13 @@ function volunteerButtonClick()
     if (gameStatus == GAME_STATUS_OVERNIGHT)
     {
       alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
+      return;
+    }
+
+
+    if (gameStatus == GAME_STATUS_MAINTENANCE)
+    {
+      alert(GAME_STATUS_MAINTENANCE_TEXT);
       return;
     }
 
@@ -3257,6 +3316,10 @@ function decodeGameStatus(statusPassedIn)
         return GAME_STATUS_OVERNIGHT_TEXT;
         break;
 
+    case GAME_STATUS_MAINTENANCE:
+        return GAME_STATUS_MAINTENANCE_TEXT;
+        break;
+
     default:
       return GAME_STATUS_UNKNOWN_TEXT;
 
@@ -3355,6 +3418,34 @@ function buildStatsRegion()
          "<span id='statsKillsLabel'>Total Kills: </span><span id = 'statsTotalKills'>" + statsTotalKills + "</span><br>" +
          "<span id='statsTodaysLabel'>Today's Kills: </span><span id = 'statsTodaysKills'>" + statsTodaysKills + "</span><br>" +
          "<span id='statsLeaderLabel'>Most Kills: </span><span id = 'statsCurrentLeader'>" + statsCurrentLeader;
+}
+
+// ------------------------------------------------
+
+function checkToResizePicture()
+{
+
+          // check to resize target picture
+
+          var targetImage = document.getElementById('targetPicture');
+
+          var tempWidth = targetImage.clientWidth;
+          var tempHeight = targetImage.clientHeight;
+
+          var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
+          var factor2 = 1/factor1;
+
+          // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
+          if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
+          {
+            targetImage.width = tempWidth * factor2;
+            targetImage.height = tempHeight * factor2;
+          }
+          else
+          {
+            picResizeTimer = setTimeout(checkToResizePicture, 100);
+          }
+
 }
 
 // ---------------------------------------------------------
@@ -3485,6 +3576,7 @@ function renderGame(myStatus)
 
               myBody.innerHTML = tempBody;
 
+
               document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
 
               if (showMyPic == true)
@@ -3518,8 +3610,25 @@ function renderGame(myStatus)
                             console.log("getDownloadURL worked in render game status active - targets picture");
                             // document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL; // yyy
 
+                            document.getElementById("targetPicture").style.visibility = "hidden";
+
                             document.getElementById("targetPicture").src = url;
                             document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2  + "<br>";
+
+
+                            // kick off timer process to check picture size
+
+                            // yyyy
+
+
+                            picResizeTimer = setTimeout(checkToResizePicture, 100);
+
+                            document.getElementById("targetPicture").style.visibility = "visible";
+
+                            // //or however you get a handle to the IMG
+                            // var width = img.clientWidth;
+                            // var height = img.clientHeight;
+
 
                           }).catch(function(error)
                             {
