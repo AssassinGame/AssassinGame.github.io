@@ -3438,8 +3438,8 @@ function checkToResizeMyPicture()
     console.log("checkToResizeMyPicture timer called ------------------------");
     // check to resize target picture
 
-    if (status == PLAYER_STATUS_ACTIVE)
-    {
+    // if (status == PLAYER_STATUS_ACTIVE) || (status == PLAYER_STATUS_)
+    // {
         var targetImage = document.getElementById('myPicture');
 
         var tempWidth = targetImage.clientWidth;
@@ -3448,17 +3448,22 @@ function checkToResizeMyPicture()
         var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
         var factor2 = 1/factor1;
 
+        console.log("checkToResizeMyPicture called - width is " + tempWidth + "  Height is " + tempHeight);
+
         // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
         if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
         {
+          console.log("Got here 1");
           targetImage.width = tempWidth * factor2;
           targetImage.height = tempHeight * factor2;
         }
         else
         {
-          picResizeTimer = setTimeout(checkToResizeMyPicture, 100);
+          console.log("Got here 2");
+          if (tempWidth != PICTURE_SIZE_LOWER_SIZE)
+            picResizeTimer = setTimeout(checkToResizeMyPicture, 100);
         }
-    }
+    // }
 
 }
 
@@ -3488,7 +3493,8 @@ function checkToResizeTargetPicture()
               }
               else
               {
-                picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);
+                if (tempWidth != PICTURE_SIZE_LOWER_SIZE)
+                    picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);
               }
           }
 
@@ -3820,11 +3826,13 @@ function renderGame(myStatus)
 
               document.getElementById("idInputBox").value = playerId;
 
-              if (showMyPic == true)
-              {
-                  document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-                  document.getElementById("myPicture").src = myURL;
-              }
+              showMyPicIfNecessary();
+
+              // if (showMyPic == true)
+              // {
+              //     document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
+              //     document.getElementById("myPicture").src = myURL;
+              // }
 
         }
 
