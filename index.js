@@ -280,7 +280,7 @@ var statsCurrentLeader = 0;
 
 var picResizeTimer;
 var picResizeTimer2;
-
+var progressCounter = 0;  // picture upload counter
 // unsubscribe global vars
 var playerUnsubscribe;  // var to store player subscription, needed for later unSubscribe
 var linkUnsubscribe;    // var to store link subscription
@@ -1260,6 +1260,7 @@ function logoffUser()
     myURL = "";
     bombAlerted = 0;  // specific to the player
     showRules = false;
+    progressCounter = 0;
     // messages = new Array;
 
     renderGame(PLAYER_STATUS_LOGGED_OFF);
@@ -2058,6 +2059,13 @@ function uploadPictureButtonClick()
 
               console.log('Upload is ' + progress + '% done');
 
+              if (progress > progressCounter * 5)
+              {
+                postMessage("Uploading: " + Math.trunc(progress) + "% complete.");
+                renderGame(status);
+                progressCounter++;
+              }
+
               switch (snapshot.state)
               {
                 case firebase.storage.TaskState.PAUSED: // or 'paused'
@@ -2085,6 +2093,7 @@ function uploadPictureButtonClick()
                 // For instance, get the download URL: https://firebasestorage.googleapis.com/...
                 uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL)
                 {
+                  progressCounter = 0;
                   console.log('Success - File available at', downloadURL);
                   postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
                   postEvent(EVENT_TYPE_PLAYER_UPLOAD_PIC, playerId);
