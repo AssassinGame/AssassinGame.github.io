@@ -2,14 +2,15 @@
 
 const FIRESTORE_DB_1 = 1;
 const FIRESTORE_DB_2 = 2;
-var firebaseDB = FIRESTORE_DB_1;
-// var firebaseDB = FIRESTORE_DB_2;
+
+// var firebaseDB = FIRESTORE_DB_1;
+var firebaseDB = FIRESTORE_DB_2;    // production prod
 
 const ENTER_KEY = 13; // intercept enter key for default processing
 const PLAYER_ID_LENGTH = 8;   // length of player id
 const SCROLLING_MESSAGE_LENGTH = 3;
-const PICTURE_SIZE_LOWER_SIZE = 500;
-const PICTURE_SIZE_UPPER_SIZE = 550;
+const PICTURE_SIZE_LOWER_SIZE = 450;
+const PICTURE_SIZE_UPPER_SIZE = 500;
 
 const SYSTEM_ID = "SYSTEM";
 
@@ -33,8 +34,9 @@ const GAME_STATUS_UNKNOWN_TEXT = "Unknown Status";
 const GAME_STATUS_OVERNIGHT_TEXT = "Game Paused at Night";
 const GAME_STATUS_MAINTENANCE_TEXT = "Game Paused, System Maintenance.";
 
+
 // Player status constants
-const PLAYER_STATUS_LOGGED_OFF = 0;
+const PLAYER_STATUS_LOGGED_OFF = 1;
 const PLAYER_STATUS_LOGGED_OFF_TEXT = "Logged Off";
 const PLAYER_STATUS_REGISTERED = 2;
 const PLAYER_STATUS_REGISTERED_TEXT = "Registered";
@@ -50,7 +52,12 @@ const PLAYER_STATUS_BREAK = 7;
 const PLAYER_STATUS_BREAK_TEXT = "On Break";
 const PLAYER_STATUS_GAME_OVER = 8;
 const PLAYER_STATUS_GAME_OVER_TEXT = "Game Completed";
+const PLAYER_STATUS_QUIT = 9;
+const PLAYER_STATUS_QUIT_TEXT = "You quit the game.";
 const PLAYER_STATUS_UNKNOWN_TEXT = "Unknown Status";
+
+const PLAYER_TYPE_REGULAR = 0;
+const PLAYER_TYPE_CELEBRITY = 1;
 
 const REGISTERED_ASAP = 0;      // enter game as soon as possible
 const REGISTERED_SCHEDULED = 1; // wait to enter game until scheduled start
@@ -105,6 +112,7 @@ const PIC_MISSING_MINE = 2;
 // Message Text Constants - Find similar and clean up.
 const MESSAGE_TEXT_WELCOME = "Welcome to Assassin.  Enter ID and click Login -OR- Enter your real name and click Register.";
 const MESSAGE_TEXT_GAME_START = "The game starts Wed. June 19 at Noon ET.";
+const MESSAGE_TEXT_GAME_STATUS_ACTIVE = "The game status changed to Active.";
 
 const MESSAGE_TEXT_LOGIN = "Successul log in.";
 const MESSAGE_TEXT_LOGIN_FAILED = "Player login failed. id = ";
@@ -121,7 +129,7 @@ const MESSAGE_TEXT_QUIT = "Successful Quit Game.";
 const MESSAGE_TEXT_ASSASSINATED = "You have been assassinated!";
 const MESSAGE_TEXT_ACTIVATED = "You are activated!";
 const MESSAGE_TEXT_WAITING = "You are waiting to enter game.";
-// const MESSAGE_TEXT_NEW_TARGET= "You are active, check for a new target.";
+const MESSAGE_TEXT_NEW_TARGET= "Your target changed!";
 const MESSAGE_TEXT_BOUNTY_OWED_CHANGE = "Change in Bounties Owed.";
 const MESSAGE_TEXT_INVALID_SCREEN_DATA = "Invalid screen data.";
 const MESSAGE_TEXT_PAUSED_GAME = "Game paused. Only 1 active player.";
@@ -145,7 +153,7 @@ const MESSAGE_TEXT_MY_FILE_NOT_FOUND = "You have not uploaded a picture yet.  Cl
 // const MESSAGE_TEXT_TARGET_PICTURE_NOT_FOUND = "Target Picture Not Found.";
 const MESSAGE_TEXT_VOLUNTEER_NEEDED = "Click the volunteer button to exit the game with a refund of 1 bounty.";
 const MESSAGE_TEXT_CANT_VOLUNTEER = "Only active players can volunteer to move to inactive status.";
-const MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK = "Too early to return from break.";
+const MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK = "Too early to return from break.  Please wait ";
 const MESSAGE_TEXT_CANT_TAKE_BREAK = "You can only take a break when active.";
 const MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK = "You are not on break.  Can't return.";
 const MESSAGE_TEXT_VOLUNTEER_FILLED = "Volunteer request filled.";
@@ -156,7 +164,7 @@ const MESSAGE_TEXT_BOMB_DROPPED = "Bomb dropped!  Check for a new target.";
 // const GAME_FUNCTION_DISABLED_OVERNIGHT = "";
 
 
-var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol><li>The game begins Wednesday, June 19 at Noon and ends Saturday at 9:00 pm.</li><li>Register for the game by entering your real name and clicking Register.  An ID will be generated for you, please record it somewhere. Then log in and upload your picture.  Your ID may be saved in the browser.</li><li>You can also register and pay the $5 entry in person with the Admin, Jon Pawelko, at PorcFest (Guy with the orange backpack).  Please reduce bandwidth bottlenecks at PorcFest by registering and uploading your picture ahead of time.</li><li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>Ages 13 and up.</li><li>Water guns are $1 or you can bring your own.  However, water guns are not required.  You can use any method to assassinate your target.</li><li>The game will be paused nightly.  No assassinations are valid between 9 PM and 9 AM.</li><li>Contact Jon through the PorcFest event on the Whova App if you have any questions or issues.  You can post general messages on the Whova – PorcFest Assassin Group.</li><li>Once you are registered, paid, and your picture is approved, you will be placed in the Waiting Queue.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you into thinking you are their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>You are officially playing in the game when your status changes to Active.  You will see the name and picture of your target on this website when you are logged in.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>Log your successful assassination on the website by entering the name of your Target's Target and clicking the 'Confirm Assassination' button.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb”.  This will release all Waiting players into the game and re-shuffle all target assignments.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.  Targets can douse their assassin at any time to reset the 60 minute safe period.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers that choose to join ASAP are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.  If you are in the Waiting Queue, it is your responsibility to check for status frequently as you may be entering the game at any time.  If you don't want to enter ASAP, see the following 'Scheduled' feature when you register.  </li><li>A new feature this year allows you to enter a running game at a specific time using the 'Scheduled' start registration.  The message under the registration area shows the next scheduled start time.  Set your phone alarm for this time to remind yourself you're in the game.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 assassinations and above, capped at $5.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the assassination is successful.</li></ol>";
+var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol><li>The game begins Wednesday, June 19 at Noon and ends Saturday at 9:00 pm.</li><li>Register for the game by entering your real name and clicking Register.  An ID will be generated for you, please record it somewhere. Then log in and upload your picture.  Your ID may be saved in the browser.</li><li>You can also register and pay the $5 entry in person with the Admin, Jon Pawelko, at PorcFest (Guy with the orange backpack).  Please reduce bandwidth bottlenecks at PorcFest by registering and uploading your picture ahead of time.</li><li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>Ages 13 and up.</li><li>Water guns are $1 or you can bring your own.  However, water guns are not required.  You can use any method to assassinate your target.</li><li>The game will be paused nightly.  No assassinations are valid between 9 PM and 9 AM.</li><li>Contact Jon through the PorcFest event on the Whova App if you have any questions or issues.  You can post general messages on the Whova – PorcFest Assassin Group.</li><li>Once you are registered, paid, and your picture is approved, you will be placed in the Waiting Queue.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you into thinking you are their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>You are officially playing in the game when your status changes to Active.  You will see the name and picture of your target on this website when you are logged in.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>Log your successful assassination on the website by entering the name of your Target's Target and clicking the 'Confirm Assassination' button.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb”.  This will release all Waiting players into the game and re-shuffle all target assignments.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.  Targets can douse their assassin at any time to reset the 60 minute safe period.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers that choose to join ASAP are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.  If you are in the Waiting Queue, it is your responsibility to check for status frequently as you may be entering the game at any time.  If you don't want to enter ASAP, see the following 'Scheduled' feature when you register.  </li><li>A new feature this year allows you to enter a running game at a specific time using the 'Scheduled' start registration.  The message under the registration area shows the next scheduled start time.  Set your phone alarm for this time to remind yourself you're in the game.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 assassinations and above, capped at $5.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>If your target is a Celebritarian, you earn an extra $5.<li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the assassination is successful.</li></ol>";
 
 
 // ----- Initialize Firebase -----------------------------------------------------
@@ -255,6 +263,7 @@ var owed = 0;
 var total = 0;
 var targetName = "";
 var targetId = "";
+var targetType = 0;   // default to regular vs celebrity
 var nameOfTargetsTarget = "";
 var myLinkRef; // reference to my link in the chain
 var bombAlerted = 0;  // specific to the player
@@ -355,6 +364,7 @@ gameDataRef.get().then(function(doc)
 
       postMessage(MESSAGE_TEXT_WELCOME);
 
+      statsOnlyChange = false;
       renderGame(status);
 
   }  // end if gameData doc exists
@@ -362,6 +372,7 @@ gameDataRef.get().then(function(doc)
   {
     console.log("Game Data Retrieval error, sometimes happens even though no issue");
     postMessage(MESSAGE_TEXT_FATAL_ERROR);
+    statsOnlyChange = false;
     renderGame(status);
     postError(playerId,ERROR_GAME_DATA_REF_DOESNT_EXIST);
   }
@@ -383,12 +394,15 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
 
     if (doc.exists)
     {
+        var volunteerChanged = false;
+
         // turn on or off volunteer button - Player needs to be active.
         if ((doc.data().volunteerNeeded == true) && (status == PLAYER_STATUS_ACTIVE))
         {
             // document.getElementById("volunteerButton").style.visibility = "visible";  // yyy
             postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
             volunteerNeeded = true;
+            volunteerChanged = true;
         }
         else
         {
@@ -396,17 +410,19 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
           {
               postMessage(MESSAGE_TEXT_VOLUNTEER_FILLED);
               volunteerNeeded = false;
+              volunteerChanged = true;
           }
 
           // document.getElementById("volunteerButton").style.visibility = "hidden";  // yyy
         }
 
-        console.log("Bomb dropped current = " + bombDropped + "  Bomb dropped from db = " + doc.data().bombDropped);
+        // console.log("Bomb dropped current = " + bombDropped + "  Bomb dropped from db = " + doc.data().bombDropped);
 
         var bombJustDropped = false;
 
         if ((bombDropped == 0) && (doc.data().bombDropped == 1))
         {
+            console.log("Bomb just dropped ---------------------- bomb dropped local in code = " + bombDropped + "   bomb dropped from db is " + doc.data().bombDropped);
             bombJustDropped = true;
 
             postMessage(MESSAGE_TEXT_BOMB_DROPPED);
@@ -431,6 +447,7 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
 
         if ((volunteerNeeded == false ) && (bombJustDropped == false))
         {
+            console.log("Should not get here after bomb dropped.");
             if (statsTotal != doc.data().statsTotal)
             {
               statsOnlyChange = true;
@@ -474,10 +491,6 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
             }
         }
 
-
-        // renderGame(status);  // --------------------------------------------------------------
-
-
         // update global vars  -  thought this should be done earlier, but maybe not? yyy
         nextScheduledStart = doc.data().nextScheduledStart;
 
@@ -489,10 +502,11 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
         statsTodaysKills = doc.data().statsTodaysKills;
         statsCurrentLeader = doc.data().statsCurrentLeader;
 
-        // only process change if status changes, check for other data changes above
-        if (gameStatus != doc.data().status)
+        // only process change if status changes or bomb dropped, check for other data changes above
+        if ((gameStatus != doc.data().status) || (bombJustDropped == true))
         {
             var oldStatus = gameStatus;
+            statsOnlyChange = false;
 
             gameStatus = doc.data().status;
 
@@ -500,8 +514,10 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
             {
               case GAME_STATUS_ACTIVE:
 
+                  var tempDate = new Date((nextScheduledStart).toDate());
 
-              var tempDate = new Date((nextScheduledStart).toDate());
+                  if (bombJustDropped != true)
+                      postMessage(MESSAGE_TEXT_GAME_STATUS_ACTIVE);
 
 
                   if (oldStatus == GAME_STATUS_NOT_STARTED)
@@ -601,10 +617,23 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
 
               case GAME_STATUS_OVERNIGHT:
 
-                  postMessage(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM");
+                  postMessage(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
 
                   if (loggedIn == true)
                       document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);
+
+                  renderGame(status);
+
+                  break;
+
+              case GAME_STATUS_MAINTENANCE:
+
+                  postMessage(GAME_STATUS_MAINTENANCE_TEXT);
+
+                  if (loggedIn == true)
+                      document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);
+
+                  renderGame(status);
 
                   break;
 
@@ -614,8 +643,9 @@ gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
         }
         else
         {
-            console.log("Render game called from game subscriber");
-            renderGame(status);
+            if ((statsOnlyChange == true) || (volunteerChanged == true))
+            //console.log("Render game called from game subscriber  ------- should be executed after bomb drop.");
+              renderGame(status);
         }
 
     } // end if doc exists
@@ -674,6 +704,7 @@ function registerButtonClick()
     {
       console.log("Blank name entered in name input box.");
       postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name is invalid.");
+      statsOnlyChange = false;
       renderGame(status);
       return;
     }
@@ -761,6 +792,7 @@ function registerButtonClick()
                           total: 0,
                           paid: 0,
                           pictureName: "",
+                          celeb: PLAYER_TYPE_REGULAR,
                           pictureApproved: 0,
                           registrationType: myRegistrationType,
                           scheduledTime: nextScheduledStart,  // this will be ignored if registered ASAP
@@ -779,6 +811,7 @@ function registerButtonClick()
 
                             playerId = tempId;
                             status = PLAYER_STATUS_REGISTERED;
+                            statsOnlyChange = false;
                             renderGame(status);
                         })
                         .catch(function(error) {
@@ -838,10 +871,12 @@ function loginButtonClick()
 {
     targetId = "";
     getScreenData();
+    showRules = false;
 
     if (playerId == "")
     {
         postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + " ID is missing.");
+        statsOnlyChange = false;
         renderGame(status);
         return;
     }
@@ -861,14 +896,34 @@ function loginButtonClick()
     {
       if (doc.exists)
       {
+
+          // set global vars
+
+          bombDropped = doc.data().bombDropped;
+          minBreakLength = doc.data().minBreakLength;
+          morningStartTime = doc.data().morningStartTime;
+          nightEndTime = doc.data().nightEndTime;
           gameStatus = doc.data().status;
-          console.log("Login clicked, volunteer needed is " + doc.data().volunteerNeeded);
           volunteerNeeded = doc.data().volunteerNeeded;
+          nextScheduledStart = doc.data().nextScheduledStart;
+
+          statsActive = doc.data().statsActive;
+          statsCurrentLeader = doc.data().statsCurrentLeader;
+          statsSched = doc.data().statsSched;
+          statsTodaysKills = doc.data().statsTodaysKills;
+          statsTotal = doc.data().statsTotal;
+          statsTotalKills = doc.data().statsTotalKills;
+          statsWaiting = doc.data().statsWaiting;
+
+
+          console.log("Login clicked, volunteer needed is " + doc.data().volunteerNeeded);
+
 
           if (volunteerNeeded == true)
           {
               console.log("Volunteer Needed is true");
               postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
+              statsOnlyChange = false;
               renderGame(status);
           }
 
@@ -898,6 +953,7 @@ function loginButtonClick()
 
         if ((bombDropped == 1) && (bombAlerted == 0))
         {
+            console.log("----------------------------- Bomb dropped is " + bombDropped );
             postMessage(MESSAGE_TEXT_BOMB_DROPPED);
 
             // update player record to alerted yes
@@ -976,18 +1032,20 @@ function loginButtonClick()
                       // targetId = "";
                       targetName = "";
                       nameOfTargetsTarget = "";
+                      targetType = 0;
 
-                      // decreasing active players by 1  --------------------------------- yyy - need to test this, double count
-                      db.collection("gameData").doc("gameData").update({
-                        statsActive: statsActive - 1
-                      })
-                      .then(function() {
-                        console.log("Decr stats active by 1");
-                      })
-                      .catch(function(error) {
-                        console.error("Decr stats active failed", error);
-                      });
+                      // decreasing active players by 1  --------------------------------- yyy - need to test this, double count - Don't need it.
+                      // db.collection("gameData").doc("gameData").update({
+                      //   statsActive: statsActive - 1
+                      // })
+                      // .then(function() {
+                      //   console.log("Decreasing active players by 1 - this could be a double count -------------------------------");
+                      // })
+                      // .catch(function(error) {
+                      //   console.error("Decr stats active failed", error);
+                      // });
 
+                      statsOnlyChange = false;
                       renderGame(PLAYER_STATUS_INACTIVE);
 
                       return;
@@ -1016,19 +1074,23 @@ function loginButtonClick()
                             // 1 of 2 places in the code - Player updated to active in listener
                             linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
                             {
+                                  console.log("Link subscribe called - at the top here ---------- activated within status change from waiting to active");
                                   // console.log("My link listener called on the way in - within Log In.");
-                                  if ((doc.exists) && (Number(doc.id) == Number(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                                  if ((doc.exists) && (String(doc.id) == String(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
                                   //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
                                   {
-                                      console.log("My link listener called - Doc exists - within waiting to queue change");
+                                      console.log("My link listener called - Doc exists - within waiting to queue change  --- this should be setting my new target = " + doc.data().target);
 
                                       targetId = doc.data().target;
 
+                                      postMessage(MESSAGE_TEXT_NEW_TARGET); // yyyy
+                                      statsOnlyChange = false;
                                       renderGame(PLAYER_STATUS_ACTIVE);
 
                                   }   // end if doc exists
                                   else {
                                     // my link doesn't exist
+                                    console.log("Here is the error --------- doc exists is " + doc.exists + "  doc id is " + doc.id + "  playerId is " + playerId);
                                   }
                             }); // end myLinkRef - subscribe
 
@@ -1048,6 +1110,8 @@ function loginButtonClick()
                       }); // end .get on my link
                       //  error checking here
 
+                      statsOnlyChange = false;
+                      renderGame(status);
                       return;
                   } // end if - moved from queue into game
 
@@ -1057,6 +1121,7 @@ function loginButtonClick()
                       console.log("Player is registered - Subscriber called.");
                       postMessage(MESSAGE_TEXT_REGISTER_PLAYER);
                       status = PLAYER_STATUS_REGISTERED;
+                      statsOnlyChange = false;
                       renderGame(PLAYER_STATUS_REGISTERED);
                       return;
                   }
@@ -1066,7 +1131,8 @@ function loginButtonClick()
                   {
                       // ignore, no status change zzz - this is one of those where maybe I can filter on the change type
                       console.log("Maybe zzz this gets called on the initial creation of the listener?");
-                      console.log("Render game about to be called, owed is " + owed);
+                      // console.log("Render game about to be called, owed is " + owed);
+                      statsOnlyChange = false;
                       renderGame(PLAYER_STATUS_WAITING);
                       return;
                   }
@@ -1076,7 +1142,8 @@ function loginButtonClick()
                   {
                       console.log(MESSAGE_TEXT_WAITING);
                       status = PLAYER_STATUS_WAITING;
-                      console.log("Render game about to be called, owed is " + owed);
+                      // console.log("Render game about to be called, owed is " + owed);
+                      statsOnlyChange = false;
                       renderGame(PLAYER_STATUS_WAITING);
                       return;
                   }
@@ -1085,11 +1152,13 @@ function loginButtonClick()
                   if ((doc.data().status == PLAYER_STATUS_SCHEDULED) && (status != PLAYER_STATUS_SCHEDULED))
                   {
                       status = PLAYER_STATUS_SCHEDULED;
+                      statsOnlyChange = false;
                       renderGame(PLAYER_STATUS_SCHEDULED);
                       return;
                   }
 
                   console.log("Render game about to be called, owed is " + owed);
+                  statsOnlyChange = false;
                   renderGame(status);
 
               }  // end doc exists - player subscribe
@@ -1127,7 +1196,7 @@ function loginButtonClick()
                   // 2 of 2 places in code for this subscribe.  This one is Log In and Active.
                   linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
                   {
-                    if ((doc.exists) && (Number(doc.id) == Number(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
+                    if ((doc.exists) && (String(doc.id) == String(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
                     //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
                       {
                           console.log("My link listener called - Doc exists - My id is " + playerId + " Subscriber id is " + doc.id);
@@ -1153,8 +1222,14 @@ function loginButtonClick()
                           }
                           else // continue, not in paused mode
                           {
+                              console.log("Checking on types of changes xxxxx - old target is " + targetId + "   New target is " + doc.data().target);
+
+                              if (targetId != doc.data().target)
+                                  postMessage(MESSAGE_TEXT_NEW_TARGET);
+
                               targetId = doc.data().target;
 
+                              statsOnlyChange = false;
                               renderGame(PLAYER_STATUS_ACTIVE);
                               return;
 
@@ -1168,6 +1243,7 @@ function loginButtonClick()
 
                   }); // end myLinkRef onSnapshot
 
+                  statsOnlyChange = false;
                   renderGame(PLAYER_STATUS_ACTIVE);
 
               } // end if doc exists on search for my link record
@@ -1183,6 +1259,7 @@ function loginButtonClick()
           console.log("Status is not active. It is " + decodePlayerStatus(doc.data().status));
         }
 
+        statsOnlyChange = false;
         renderGame(status);
 
     }   // end if doc exists
@@ -1190,6 +1267,7 @@ function loginButtonClick()
     {
       postMessage(MESSAGE_TEXT_LOGIN_FAILED + playerId);
       postError(playerId, MESSAGE_TEXT_LOGIN_FAILED + playerId);
+      statsOnlyChange = false;
       renderGame(PLAYER_STATUS_LOGGED_OFF);
     }
 
@@ -1215,6 +1293,7 @@ function rulesButtonClick()
 {
   postMessage(MESSAGE_TEXT_SEE_RULES_BELOW);
   showRules = true;
+  statsOnlyChange = false;
   renderGame(status);
 }
 
@@ -1249,6 +1328,7 @@ function logoffUser()
     total = 0;
     targetName = "";
     targetId = "";
+    targetType = 0;
     nameOfTargetsTarget = "";
     myLinkRef = ""; // reference to my link in the chain
     myPicFileName = "";
@@ -1263,6 +1343,7 @@ function logoffUser()
     progressCounter = 0;
     // messages = new Array;
 
+    statsOnlyChange = false;
     renderGame(PLAYER_STATUS_LOGGED_OFF);
 
     console.log("Logoff Called and completed.");
@@ -1278,7 +1359,7 @@ function confirmAssassinationButtonClick()
 {
     if (gameStatus == GAME_STATUS_OVERNIGHT)
     {
-      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
+      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
       return;
     }
 
@@ -1386,7 +1467,15 @@ function confirmAssassination()
                         // create a reference to the player document to increment owed
                         var playerRef = db.collection("players").doc(playerId);
 
+                        if (targetType == PLAYER_TYPE_CELEBRITY)
+                        {
+                          owed++;
+                          console.log("Target was a celebrity ----------------------------");
+                          targetType = PLAYER_TYPE_REGULAR;
+                        }
+
                         owed++;
+
                         total++;
 
                         // increase owed and total in db
@@ -1441,6 +1530,7 @@ function confirmAssassination()
                                       })
                                       .then(function() {
                                         console.log("Players update assign my target to first in queue success.");
+                                        // May need to check for celebrity here - yyyy - or in render game
                                       })
                                       .catch(function(error) {
                                         console.error("Error assign my target to first in queue.", error);
@@ -1615,13 +1705,13 @@ function confirmAssassination()
                                     console.error("Error player update to db.", error);
                                   });
 
-                                // increasing total players by 1  ---------------------------------
+                                // decreasing total players by 1  ---------------------------------
                                 db.collection("gameData").doc("gameData").update({
                                   statsActive: --statsActive,
                                   statsWaiting: 0
                                 })
                                 .then(function() {
-                                  console.log("Increased total kills and todays kills by 1");
+                                  console.log("Decreasing active players by 1 - this could be a double count ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                                 })
                                 .catch(function(error) {
                                   console.error("Increased total kills and todays kills failed", error);
@@ -1644,6 +1734,7 @@ function confirmAssassination()
                           console.log("Attempted assassination names don't match.");
                           postMessage(MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
                           postError(playerId,MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
+                          statsOnlyChange = false;
                           renderGame(status);
                       }
 
@@ -1757,6 +1848,12 @@ function buyBackInButtonClick()
                   console.error("Set game status to Not Started failed", error);
                 });
 
+                postMessage(MESSAGE_TEXT_BUY_BACK_IN);
+                postEvent(EVENT_TYPE_PLAYER_BUY_BACK_IN, playerId);
+                status = PLAYER_STATUS_WAITING;
+                statsOnlyChange = false;
+                renderGame(PLAYER_STATUS_WAITING);
+
             } else
             {
               console.log("Error Doc doesnt exists");
@@ -1765,10 +1862,6 @@ function buyBackInButtonClick()
               console.log("Error getting queue document:", error);
               });
 
-          postMessage(MESSAGE_TEXT_BUY_BACK_IN);
-          postEvent(EVENT_TYPE_PLAYER_BUY_BACK_IN, playerId);
-          status = PLAYER_STATUS_WAITING;
-          renderGame(PLAYER_STATUS_WAITING);
 
         } // end if inactive and owed bounty
         else {
@@ -1853,7 +1946,7 @@ function takeABreakButtonClick()
                     statsActive: statsActive - 1
                   })
                   .then(function() {
-                    console.log("Increased total players by 1");
+                    console.log("Decreased total players by 1");
                   })
                   .catch(function(error) {
                     console.error("Set game status to Not Started failed", error);
@@ -1861,6 +1954,7 @@ function takeABreakButtonClick()
               } // error checking,
           });
 
+          statsOnlyChange = false;
           renderGame(PLAYER_STATUS_BREAK);
 
         } // end if active
@@ -1916,7 +2010,8 @@ function returnFromBreakButtonClick()
             if (minsDiff < minBreakLength)
             {
               console.log("Too early to return");
-              postMessage(MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK);
+              postMessage(MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK + String(Math.trunc(minBreakLength - minsDiff) + 1) + " more minutes.");
+              statsOnlyChange = false;
               renderGame(status);
               return;
             }
@@ -1972,6 +2067,8 @@ function returnFromBreakButtonClick()
                         console.error("Set game status to Not Started failed", error);
                       });
 
+                      renderGame(status);
+
 
                 }   // end if doc.exists
                 else
@@ -1982,6 +2079,7 @@ function returnFromBreakButtonClick()
                   console.log("Error getting queue document:", error);
                   });
 
+              statsOnlyChange = false;
               renderGame(PLAYER_STATUS_WAITING);
 
         }  // end if status is break
@@ -2062,6 +2160,7 @@ function uploadPictureButtonClick()
               if (progress > progressCounter * 5)
               {
                 postMessage("Uploading: " + Math.trunc(progress) + "% complete.");
+                statsOnlyChange = false;
                 renderGame(status);
                 progressCounter++;
               }
@@ -2098,6 +2197,7 @@ function uploadPictureButtonClick()
                   postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
                   postEvent(EVENT_TYPE_PLAYER_UPLOAD_PIC, playerId);
                   document.getElementById("playerPictureInput").value = "";
+                  statsOnlyChange = false;
                   renderGame(status);
                 });
           });
@@ -2129,6 +2229,7 @@ function viewMyPictureButtonClick()
         showMyPic = true;
         myURL = url;
 
+        statsOnlyChange = false;
         renderGame(status);
 
       }).catch(function(error)
@@ -2136,6 +2237,7 @@ function viewMyPictureButtonClick()
           // decodeFileErrorCode(error,PIC_MISSING_MINE);
           console.log("View my picture failed");
           postMessage(MESSAGE_TEXT_MY_FILE_NOT_FOUND);
+          statsOnlyChange = false;
           renderGame(status);
           postError(playerId, PIC_MISSING_MINE);
         });  // end catch
@@ -2194,7 +2296,7 @@ function quitGameButtonClick()
 
                           statsActive = doc.data().statsActive;
 
-                          // increasing total players by 1  ---------------------------------
+                          // decreasing active players by 1  ---------------------------------
                           db.collection("gameData").doc("gameData").update({
                             statsActive: statsActive - 1
                           })
@@ -2207,10 +2309,11 @@ function quitGameButtonClick()
                       } // error checking,
                   });
 
-                  deletePlayer();
+                  deletePlayer();   // yyyy
 
                   postMessage(MESSAGE_TEXT_QUIT);
                   postEvent(EVENT_TYPE_PLAYER_QUIT_GAME, playerId);
+                  statsOnlyChange = false;
                   renderGame(PLAYER_STATUS_LOGGED_OFF);
 
                 break;
@@ -2271,8 +2374,22 @@ function quitGameButtonClick()
 
                         }
 
+                        statsWaiting = doc.data().statsWaiting;
+
+                        // decreasing active players by 1  ---------------------------------
+                        db.collection("gameData").doc("gameData").update({
+                          statsActive: statsWaiting - 1
+                        })
+                        .then(function() {
+                          console.log("decreased waiting players by 1");
+                        })
+                        .catch(function(error) {
+                          console.error("decreased waiting by 1 failed", error);
+                        });
+
                         deletePlayer();
 
+                        statsOnlyChange = false;
                         renderGame(PLAYER_STATUS_LOGGED_OFF);
 
                     }  // end if doc.exists
@@ -2342,8 +2459,22 @@ function quitGameButtonClick()
 
                           }
 
+                          statsSched = doc.data().statsSched;
+
+                          // decreasing active players by 1  ---------------------------------
+                          db.collection("gameData").doc("gameData").update({
+                            statsSched: statsSched - 1
+                          })
+                          .then(function() {
+                            console.log("decreased statsSched players by 1");
+                          })
+                          .catch(function(error) {
+                            console.error("decreased statsSched by 1 failed", error);
+                          });
+
                           deletePlayer();
 
+                          statsOnlyChange = false;
                           renderGame(PLAYER_STATUS_LOGGED_OFF);
 
                       }  // end if doc.exists
@@ -2363,6 +2494,7 @@ function quitGameButtonClick()
               case PLAYER_STATUS_REGISTERED:
 
                   deletePlayer();
+                  statsOnlyChange = false;
                   renderGame(PLAYER_STATUS_LOGGED_OFF);
 
                 break;
@@ -2389,8 +2521,8 @@ function volunteerButtonClick()
 
     if (gameStatus == GAME_STATUS_OVERNIGHT)
     {
-      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + nextScheduledStart);
-      return;
+        alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
+        return;
     }
 
 
@@ -2420,6 +2552,7 @@ function volunteerButtonClick()
         {
           document.getElementById("volunteerButton").style.visibility = "hidden";
           postMessage(MESSAGE_TEXT_VOLUNTEER_FILLED);
+          statsOnlyChange = false;
           renderGame(status);
           return;
         }
@@ -2452,8 +2585,7 @@ function volunteerButtonClick()
                 // update player status to inactive
                 playerRef.update({
                   status: PLAYER_STATUS_INACTIVE,
-                  owed: doc.data().owed + 1,
-                  total: doc.data().total + 1
+                  owed: doc.data().owed + 1
                 })
                 .then(function() {
                   console.log("Players status update success - volunteer inactive.");
@@ -2466,6 +2598,23 @@ function volunteerButtonClick()
             }   // if doc exists
 
           });
+
+          // decrement active players by 1
+
+          // decreasing total players by 1  ---------------------------------
+          db.collection("gameData").doc("gameData").update({
+            statsActive: --statsActive,
+            statsWaiting: 0
+          })
+          .then(function() {
+            console.log("Decreasing active players by 1 - this could be a double count ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+          })
+          .catch(function(error) {
+            console.error("Increased total kills and todays kills failed", error);
+          });
+
+
+
 
           // rely on status change for screen redraw
 
@@ -2516,26 +2665,26 @@ function processVolunteer()
 
                 // check here for paused scenario -
                 // if my target has me as their target, it must be paused
-                if (targetId == myAssassinsId)
-                {
-                  // go into paused mode
-                  console.log("Game Paused - Only 1 player active. Found within processVolunteer function.");
-                  postMessage(GAME_STATUS_PAUSED_TEXT);
-
-                  // Set game status to "Paused"  ---------------------------------
-                  db.collection("gameData").doc("gameData").update({
-                    status: GAME_STATUS_PAUSED
-                  })
-                  .then(function() {
-                    console.log("Set game status to Paused");
-                  })
-                  .catch(function(error) {
-                    console.error("Set game status to Paused failed", error);
-                  });
-
-                  return;
-
-                }
+                // if (targetId == myAssassinsId)
+                // {
+                //   // go into paused mode
+                //   console.log("Game Paused - Only 1 player active. Found within processVolunteer function.");
+                //   postMessage(GAME_STATUS_PAUSED_TEXT);
+                //
+                //   // Set game status to "Paused"  ---------------------------------
+                //   db.collection("gameData").doc("gameData").update({
+                //     status: GAME_STATUS_PAUSED
+                //   })
+                //   .then(function() {
+                //     console.log("Set game status to Paused");
+                //   })
+                //   .catch(function(error) {
+                //     console.error("Set game status to Paused failed", error);
+                //   });
+                //
+                //   return;
+                //
+                // }
 
                 // not a pause scenario, Continue
                 // Get reference to the assassin that has me as their target
@@ -3065,16 +3214,21 @@ function updateChainToSkipMe()
 
 // ---------------------------------------
 
-function deletePlayer()
+function deletePlayer()   // change status only, do not delete
 {
-  // delete player last ------------------------------------
-  db.collection("players").doc(playerId).delete().then(function()
-  {
-    console.log("Player " + playerId + " successfully deleted!");
-  }).catch(function(error)
-  {
-        console.error("Error removing player " + playerId + " Error: ", error);
+
+  status = PLAYER_STATUS_QUIT;
+
+  db.collection("players").doc(playerId).update({
+    status: PLAYER_STATUS_QUIT
+  })
+  .then(function() {
+    console.log("Player status set to quit.");
+  })
+  .catch(function(error) {
+    console.error("Error Player status set to quit.", error);
   });
+
 
 }
 
@@ -3287,6 +3441,10 @@ function decodePlayerStatus(statusPassedIn)
       return PLAYER_STATUS_GAME_OVER_TEXT;
             break;
 
+    case PLAYER_STATUS_QUIT:
+      return PLAYER_STATUS_QUIT_TEXT;
+            break;
+
     default:
       console.log("decode called - default unknown returned.  Status passed in was " + statusPassedIn);
       return PLAYER_STATUS_UNKNOWN_TEXT + statusPassedIn ;
@@ -3357,6 +3515,9 @@ function decodeFileErrorCode(error, picMissing)
         {
           document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
           document.getElementById("targetPicture").src = "";
+          // document.getElementById("targetPicture").width = 0
+          // document.getElementById("targetPicture").height = 0;
+
 
           // console.log("File not found errror  ------------");
           // postMessage(MESSAGE_TEXT_TARGET_FILE_NOT_FOUND);
@@ -3393,6 +3554,8 @@ function decodeFileErrorCode(error, picMissing)
 
 function buildPlayerDataRegion()
 {
+
+    // console.log("target type is " + targetType);
 
     return "<span id='myIdLabel'>My ID: </span><span id = 'myId'>"
             + playerId + "</span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'>"
@@ -3571,10 +3734,9 @@ function renderGame(myStatus)
         myBody.innerHTML = tempBody;
 
         document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+        document.getElementById("myTargetsName").innerHTML = "";
 
         showMyPicIfNecessary();
-
-        // yyyy
 
         showRules = false;
 
@@ -3600,6 +3762,7 @@ function renderGame(myStatus)
         myBody.innerHTML = tempBody;
 
         document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+        document.getElementById("myTargetsName").innerHTML = "";
 
         showMyPicIfNecessary();
 
@@ -3661,9 +3824,28 @@ function renderGame(myStatus)
                       if (doc.exists)
                       {
                           targetName = doc.data().name;
-                          console.log("Doc exists for my target - Name is " + targetName + "  Target id is " + targetId + "  Rest is " + String(targetId) + "/" + doc.data().pictureName);
 
-                          document.getElementById("myTargetsName").innerHTML = targetName;
+                          var tempTargetName = targetName;
+
+                          console.log("This line -------- doc data type is " + doc.data().celeb + "  for target id = " + targetId + " doc id is " + doc.id);
+
+                          if (doc.data().celeb == PLAYER_TYPE_CELEBRITY)
+                          {
+                            targetType = PLAYER_TYPE_CELEBRITY;
+                            tempTargetName = targetName + " ** Celebritarian **";
+                            console.log("Setting targetType to " + targetType + " For target id = " + targetId + "  doc id is " + doc.id);
+
+                            // postMessage("Your target is a celebritarian, +1 bounty for an assassination.");
+                            // targetName += " ** Celebrity **";
+                          }
+                          else
+                          {
+                            targetType = PLAYER_TYPE_REGULAR;
+                          }
+
+                          // console.log("Doc exists for my target - Name is " + targetName + "  Target id is " + targetId + "  Rest is " + String(targetId) + "/" + doc.data().pictureName);
+
+                          document.getElementById("myTargetsName").innerHTML = tempTargetName;
 
                           // update my targets picture - I need targetID and the filename from the player record
                           var myTargetsPictureRef = storageRef.child(String(targetId) + "/" + doc.data().pictureName);
@@ -3674,6 +3856,10 @@ function renderGame(myStatus)
                             // document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL; // yyy
 
                             document.getElementById("targetPicture").style.visibility = "hidden";
+
+                            //document.getElementById("targetPicture").width = 1;
+                            //document.getElementById("targetPicture").height = 1;
+
 
                             document.getElementById("targetPicture").src = url;
                             document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2  + "<br>";
@@ -3692,6 +3878,8 @@ function renderGame(myStatus)
                                 // console.log("Game status at this point is -------- " + decodeGameStatus(gameStatus));
                                 document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
                                 document.getElementById("targetPicture").src = "";
+                                // document.getElementById("targetPicture").width = 0
+                                // document.getElementById("targetPicture").height = 0;
 
                                 console.log("File not found errror2  ------------");
                                 // postMessage(MESSAGE_TEXT_TARGET_FILE_NOT_FOUND);
@@ -3772,6 +3960,7 @@ function renderGame(myStatus)
             document.getElementById("myTargetsName").innerHTML = "";
 
             targetName = "";
+            targetType = 0;
             // console.log("You are looking for this --------------------------");
             //targetId = "";
             showRules = false;
@@ -3801,6 +3990,7 @@ function renderGame(myStatus)
             myBody.innerHTML = tempBody;
 
             document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+            document.getElementById("myTargetsName").innerHTML = "";
 
             showMyPicIfNecessary();
 
@@ -3841,10 +4031,13 @@ function renderGame(myStatus)
         break;
 
     case PLAYER_STATUS_GAME_OVER:
+    case PLAYER_STATUS_QUIT:
 
-          myBody.innerHTML = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br>" + logOffButtonHTML + "<br><br>" + buildStatsRegion() + "<br><br>" + RULES_TEXT;
+
+          myBody.innerHTML = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br><br>" + logOffButtonHTML + "<br><br>" + buildStatsRegion() + "<br><br>" + RULES_TEXT;
 
           document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
+          document.getElementById("myTargetsName").innerHTML = "";
 
           break;
 
