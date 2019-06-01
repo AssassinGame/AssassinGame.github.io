@@ -244,7 +244,7 @@ var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButton
 var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()' class='button'>Take a Break</button>";
 var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()' class='button'>Return From Break</button>";
 
-var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button,<br> then click Upload</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()' class='button'>Upload</button><br> <br>";
+var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button,<br> then click Upload</span> <input type='file' id='playerPictureInput' class='button'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()' class='button'>Upload</button><br> <br>";
 var myPictureAreaHTML = "<div id='myPictureLabel'></div> <img id='myPicture' src=''>";
 var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()' class='button'>View My Picture</button>";
 var rulesRegionHTML = "<u>Rules: </u><br><br>Here are the rules";
