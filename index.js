@@ -220,32 +220,33 @@ var loginRegion = "";
 var buttonStripRegion = "";
 
 var headerHTML = "Assassin Player Application<br>";
-var loginOrRegisterHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'> &nbsp  <button id='registerButton' onclick='registerButtonClick()'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button><br> <form id='registrationTypes' action=''> <input type='radio' name='registration' checked='checked' id='registerASAP'><span id='registrationLabelASAP'>ASAP</span> <input type='radio' name='registration' id='registerSchedule'><span id='registrationLabelScheduled'>Scheduled</span><br> </form>";
 
-var loginOnlyHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()'>Log In</button><br>";
+var loginOrRegisterHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'> &nbsp  <button id='registerButton' onclick='registerButtonClick()' class='button'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button><br> <form id='registrationTypes' action=''> <input type='radio' name='registration' checked='checked' id='registerASAP'><span id='registrationLabelASAP'>ASAP</span> <input type='radio' name='registration' id='registerSchedule'><span id='registrationLabelScheduled'>Scheduled</span><br> </form>";
 
-var loginOrRegisterNoCheckboxes = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'>  &nbsp <button id='registerButton' onclick='registerButtonClick()'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()'>View Rules</button><br>";
+var loginOnlyHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>";
+
+var loginOrRegisterNoCheckboxes = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'>  &nbsp <button id='registerButton' onclick='registerButtonClick()' class='button'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button><br>";
 
 var playerDataHTML = "<span id='myIdLabel'>My ID: </span><span id = 'myId'></span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'></span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'></span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'></span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'></span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'></span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'></span>";
 
 var myTargetDataHTML = "<span id='myTargetsPictureLabel'>" + CONFIRM_KILL_LABEL + "</span><img id='targetPicture' src=''><br>";
-var confirmKillHTML = "<span id='targetNameLabel'>" + CONFIRM_KILL_LABEL + "</span><input type='text' id='targetNameBox' value='' size='12'> <br> <button id='confirmKillButton' onclick='confirmAssassinationButtonClick()'>Confirm Assassination</button><br>";
+var confirmKillHTML = "<span id='targetNameLabel'>" + CONFIRM_KILL_LABEL + "</span><input type='text' id='targetNameBox' value='' size='12'> <br> <button id='confirmKillButton' onclick='confirmAssassinationButtonClick()' class='button'>Confirm Assassination</button><br>";
 var messageHeaderHTML = "<span id='messageBoardLabel'>--- Message Board (Newest Message on Top) --- </span>"
 var statsRegtionHTML = "<span id='statsLabel'>Statistics: </span> <div id = 'statsData'></div>"
 
 var buttonStrip;
-var buyBackInButtonHTML = "<button id='buyBackInButton' onclick='buyBackInButtonClick()'>Buy Back In</button>";
-var quitGameButtonHTML = "<button id='quitGameButton' onclick='quitGameButtonClick()'>Quit Game</button>";
-var rulesButtonHTML = "<button id='rulesButton' onclick='rulesButtonClick()'>View Rules</button>";
-var logOffButtonHTML = "<button id='logOutButton' onclick='logOffButtonClick()'>Log Off</button>";
+var buyBackInButtonHTML = "<button id='buyBackInButton' onclick='buyBackInButtonClick()' class='button'>Buy Back In</button>";
+var quitGameButtonHTML = "<button id='quitGameButton' onclick='quitGameButtonClick()' class='button'>Quit Game</button>";
+var rulesButtonHTML = "<button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button>";
+var logOffButtonHTML = "<button id='logOutButton' onclick='logOffButtonClick()' class='button'>Log Off</button>";
 
-var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButtonClick()'>Volunteer</button>";
-var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()'>Take a Break</button>";
-var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()'>Return From Break</button>";
+var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButtonClick()' class='button'>Volunteer</button>";
+var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()' class='button'>Take a Break</button>";
+var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()' class='button'>Return From Break</button>";
 
-var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button, then click Upload</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()'>Upload</button><br> <br>";
+var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button,<br> then click Upload</span> <input type='file' id='playerPictureInput'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()' class='button'>Upload</button><br> <br>";
 var myPictureAreaHTML = "<div id='myPictureLabel'></div> <img id='myPicture' src=''>";
-var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()'>View My Picture</button>";
+var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()' class='button'>View My Picture</button>";
 var rulesRegionHTML = "<u>Rules: </u><br><br>Here are the rules";
 
 // Global vars to hold player  data  ----------------------
