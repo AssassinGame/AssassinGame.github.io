@@ -706,10 +706,38 @@ function registerButtonClick()
     if (name == "")
     {
       console.log("Blank name entered in name input box.");
-      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name is invalid.");
+      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name is blank.");
       statsOnlyChange = false;
       renderGame(status);
       return;
+    }
+    else
+    {
+
+      // error check on name - cycle through name and check each character
+
+      var validName = true;
+      var i = 0
+
+      while ((i<name.length) && (validName == true))
+      {
+
+          if ((name.charCodeAt(i)<65) || (name.charCodeAt(i)>122) || ((name.charCodeAt(i)>90) && (name.charCodeAt(i)<97)))
+            validName = false;
+          else {
+            i++;
+          }
+      }
+
+      if (validName == false)
+      {
+        console.log("Invalid name entered.");
+        postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name can only be letters.");
+        statsOnlyChange = false;
+        renderGame(status);
+        return;
+      }
+
     }
 
     if ((document.getElementById("idInputBox").value != "") && (name != ""))
