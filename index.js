@@ -3,8 +3,8 @@
 const FIRESTORE_DB_1 = 1;
 const FIRESTORE_DB_2 = 2;
 
-// var firebaseDB = FIRESTORE_DB_1;
-var firebaseDB = FIRESTORE_DB_2;    // production prod
+var firebaseDB = FIRESTORE_DB_1;
+// var firebaseDB = FIRESTORE_DB_2;    // production prod
 
 const ENTER_KEY = 13; // intercept enter key for default processing
 const PLAYER_ID_LENGTH = 8;   // length of player id
@@ -203,8 +203,8 @@ firebase.initializeApp(config);
 // create shorthand reference to the database
 var db = firebase.firestore();
 
-const settings = {timestampsInSnapshots: true};
-db.settings(settings);
+// const settings = {timestampsInSnapshots: true};
+// db.settings(settings);
 
 // Get a reference to the storage service, which is used to create references in your storage bucket
 var storage = firebase.storage();
