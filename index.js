@@ -1,4086 +1,3072 @@
-'use strict';
-
-const FIRESTORE_DB_1 = 1;
-const FIRESTORE_DB_2 = 2;
-
-var firebaseDB = FIRESTORE_DB_1;
-// var firebaseDB = FIRESTORE_DB_2;    // production prod
-
-const ENTER_KEY = 13; // intercept enter key for default processing
-const PLAYER_ID_LENGTH = 8;   // length of player id
-const SCROLLING_MESSAGE_LENGTH = 3;
-const PICTURE_SIZE_LOWER_SIZE = 450;
-const PICTURE_SIZE_UPPER_SIZE = 500;
-
-const SYSTEM_ID = "SYSTEM";
-
-const ERROR_GAME_DATA_REF_DOESNT_EXIST = "Game Data doc doesn't exist";
-const ERROR_GAME_DATA_REF_GET_FAILED = "Game Data Get Failed.";
-
-// Game status constants
-const GAME_STATUS_NOT_STARTED = 0;
-const GAME_STATUS_ACTIVE = 1;
-const GAME_STATUS_PAUSED = 2;
-const GAME_STATUS_COMPLETED = 3;
-const GAME_STATUS_UNKNOWN = 4;
-const GAME_STATUS_OVERNIGHT =5;
-const GAME_STATUS_MAINTENANCE =6;
-
-const GAME_STATUS_NOT_STARTED_TEXT = "Not Started";
-const GAME_STATUS_ACTIVE_TEXT = "Active";
-const GAME_STATUS_PAUSED_TEXT = "Paused";
-const GAME_STATUS_COMPLETED_TEXT = "Completed";
-const GAME_STATUS_UNKNOWN_TEXT = "Unknown Status";
-const GAME_STATUS_OVERNIGHT_TEXT = "Game Paused at Night";
-const GAME_STATUS_MAINTENANCE_TEXT = "Game Paused, System Maintenance.";
-
-
-// Player status constants
-const PLAYER_STATUS_LOGGED_OFF = 1;
-const PLAYER_STATUS_LOGGED_OFF_TEXT = "Logged Off";
-const PLAYER_STATUS_REGISTERED = 2;
-const PLAYER_STATUS_REGISTERED_TEXT = "Registered";
-const PLAYER_STATUS_WAITING = 3;
-const PLAYER_STATUS_WAITING_TEXT = "Waiting";
-const PLAYER_STATUS_SCHEDULED = 4;
-const PLAYER_STATUS_SCHEDULED_TEXT = "Scheduled";
-const PLAYER_STATUS_ACTIVE = 5;
-const PLAYER_STATUS_ACTIVE_TEXT = "Active";
-const PLAYER_STATUS_INACTIVE = 6;
-const PLAYER_STATUS_INACTIVE_TEXT = "Inactive";
-const PLAYER_STATUS_BREAK = 7;
-const PLAYER_STATUS_BREAK_TEXT = "On Break";
-const PLAYER_STATUS_GAME_OVER = 8;
-const PLAYER_STATUS_GAME_OVER_TEXT = "Game Completed";
-const PLAYER_STATUS_QUIT = 9;
-const PLAYER_STATUS_QUIT_TEXT = "You quit the game.";
-const PLAYER_STATUS_UNKNOWN_TEXT = "Unknown Status";
-
-const PLAYER_TYPE_REGULAR = 0;
-const PLAYER_TYPE_CELEBRITY = 1;
-
-const REGISTERED_ASAP = 0;      // enter game as soon as possible
-const REGISTERED_SCHEDULED = 1; // wait to enter game until scheduled start
-
-// Screen labels
-const MY_TARGETS_PICTURE_LABEL_PART1 = "My Target ";
-const MY_TARGETS_PICTURE_LABEL_PART2 = "'s Picture: <br>";
-
-const MY_PICTURE_LABEL = "My Picture:"
-const CONFIRM_KILL_LABEL = "Name of your target's target: ";
-
-// // Events
-// const EVENT_TYPE_LOGIN = 3;
-// const EVENT_TYPE_INCORRECT_LOGIN = 4;
-// const EVENT_TYPE_LOGOFF = 5;
-// const EVENT_TYPE_CONFIRM_BOUNTY = 6;
-// const EVENT_TYPE_BOUNTY_FAILED = 7;
-// const EVENT_TYPE_BUY_BACK_IN = 12;
-// const EVENT_TYPE_PING_TARGET = 14;  // not implemented yet
-// const EVENT_TYPE_ANSWER_PING = 15;  // not implemented yet
-// const EVENT_TYPE_TAKE_BREAK = 16;
-// const EVENT_TYPE_RETURN_FROM_BREAK = 17;
-// const EVENT_TYPE_ASSASSINATED = 18;
-// const EVENT_TYPE_ACTIVATED = 19;
-// const EVENT_TYPE_WAITING = 20;
-// const EVENT_TYPE_VOLUNTEERED = 21;
-
-
-// -----------------------------------------------------------------
-// Player events
-
-const EVENT_TYPE_PLAYER_LOGIN = 101;
-const EVENT_TYPE_PLAYER_REGISTER_SUCCESS_ASAP = 102;
-const EVENT_TYPE_PLAYER_REGISTER_SUCCESS_SCHED = 103;
-const EVENT_TYPE_PLAYER_CONFIRM_KILL = 104;
-const EVENT_TYPE_PLAYER_TAKE_BREAK = 105;
-const EVENT_TYPE_PLAYER_RETURN_BREAK = 106;
-const EVENT_TYPE_PLAYER_BUY_BACK_IN = 107;
-const EVENT_TYPE_PLAYER_UPLOAD_PIC = 108;
-const EVENT_TYPE_PLAYER_QUIT_GAME = 109;
-const EVENT_TYPE_PLAYER_VOLUNTEER = 110;
-
-// -----------------------------------------------------------------
-
-// General constants
-const OFF = 0;
-const ON = 1;
-const MIN_LENGTH_BREAK_DEFAULT = 2; // number of minutes minimum break length
-const PIC_MISSING_TARGET = 1;
-const PIC_MISSING_MINE = 2;
-
-// Message Text Constants - Find similar and clean up.
-const MESSAGE_TEXT_WELCOME = "Welcome to Assassin.  Enter ID and click Login -OR- Enter your real name and click Register.";
-const MESSAGE_TEXT_GAME_START = "The game starts Wed. June 19 at Noon ET.";
-const MESSAGE_TEXT_GAME_STATUS_ACTIVE = "The game status changed to Active.";
-
-const MESSAGE_TEXT_LOGIN = "Successul log in.";
-const MESSAGE_TEXT_LOGIN_FAILED = "Player login failed. id = ";
-const MESSAGE_TEXT_LOGOFF = "Successful log off.";
-//const MESSAGE_TEXT_PLAYER_LOGGED_OFF = "Player currently logged off";
-const MESSAGE_TEXT_CONFIRM_BOUNTY = "Bounty Confirmed!";
-const MESSAGE_TEXT_BOUNTY_FAILED = "Confirm Bounty Failed. Bad name entered was ";
-const MESSAGE_TEXT_BUY_BACK_IN = "Successful re-buy.";
-//const MESSAGE_TEXT_PING_TARGET = "Are you still at PorcFest?";  // not implemented yet
-//const MESSAGE_TEXT_ANSWER_PING = "Yes, I'm still at PorcFest.";  // not implemented yet
-const MESSAGE_TEXT_TAKE_BREAK = "Successful Break.";
-const MESSAGE_TEXT_RETURN_BREAK = "Successful Return From Break.";
-const MESSAGE_TEXT_QUIT = "Successful Quit Game.";
-const MESSAGE_TEXT_ASSASSINATED = "You have been assassinated!";
-const MESSAGE_TEXT_ACTIVATED = "You are activated!";
-const MESSAGE_TEXT_WAITING = "You are waiting to enter game.";
-const MESSAGE_TEXT_NEW_TARGET= "Your target changed!";
-const MESSAGE_TEXT_BOUNTY_OWED_CHANGE = "Change in Bounties Owed.";
-const MESSAGE_TEXT_INVALID_SCREEN_DATA = "Invalid screen data.";
-const MESSAGE_TEXT_PAUSED_GAME = "Game paused. Only 1 active player.";
-const MESSAGE_TEXT_REGISTER_PLAYER = "Sucessfully Registered.  Write down your id, login, and upload a picture. Admin will review and move you to the waiting or scheduled queue.";
-const MESSAGE_TEXT_REGISTER_PLAYER_FAILED = "Registration Failed.  Please try again.";
-const MESSAGE_TEXT_PLAYER_NOT_FOUND = "Player not found.";
-const MESSAGE_TEXT_GAME_COMPLETED = "The game is over.";
-const MESSAGE_TEXT_CANT_REGISTER_GAME_OVER = "You can't register, the game is over.";
-const MESSAGE_TEXT_PLAYER_ALREADY_EXISTS = "You generated a random number for a player that already exists.  Click Register again.";
-const MESSAGE_TEXT_VOLUNTEERED = "Successful volunteer.  You are inactive, but can buy back in.";
-const MESSAGE_TEXT_SCHEDULED = "You are scheduled to enter the game.";
-const MESSAGE_TEXT_FATAL_ERROR = "Fatal Error - Connection to DB.  Contact Admin.";
-const MESSAGE_TEXT_UPLOAD_PIC_FAILED = "Upload picture failed.";
-const MESSAGE_TEXT_UPLOAD_PIC_SUCCESS = "Upload picture success."
-const MESSAGE_TEXT_PIC_APPROVED = "Your picture has been approved by the Admin.";
-const MESSAGE_TEXT_FILE_NOT_FOUND = "File not found."
-const MESSAGE_TEXT_TARGET_FILE_NOT_FOUND = "Target file not found."
-const MESSAGE_TEXT_MY_FILE_NOT_FOUND = "You have not uploaded a picture yet.  Click browse to choose a picture, then the Upload button.";
-
-// const MESSAGE_TEXT_PICTURE_NOT_FOUND = "My Picture file not found.";
-// const MESSAGE_TEXT_TARGET_PICTURE_NOT_FOUND = "Target Picture Not Found.";
-const MESSAGE_TEXT_VOLUNTEER_NEEDED = "Click the volunteer button to exit the game with a refund of 1 bounty.";
-const MESSAGE_TEXT_CANT_VOLUNTEER = "Only active players can volunteer to move to inactive status.";
-const MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK = "Too early to return from break.  Please wait ";
-const MESSAGE_TEXT_CANT_TAKE_BREAK = "You can only take a break when active.";
-const MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK = "You are not on break.  Can't return.";
-const MESSAGE_TEXT_VOLUNTEER_FILLED = "Volunteer request filled.";
-const MESSAGE_TEXT_NEXT_START = "The next scheduled wave of new players starts at ";
-const MESSAGE_TEXT_GAME_STATUS_OVERNIGHT = "Game Paused Until Morning. Restart at ";
-const MESSAGE_TEXT_SEE_RULES_BELOW = "Scroll down to view rules below statistics.";
-const MESSAGE_TEXT_BOMB_DROPPED = "Bomb dropped!  Check for a new target.";
-// const GAME_FUNCTION_DISABLED_OVERNIGHT = "";
-
-
-var RULES_TEXT = "<p>Assassin is a game of stealth, patience, and trickery. It's also a great way to get to get to know other PorcFest attendees.</p> Rules: <br> <ol><li>The game begins Wednesday, June 19 at Noon and ends Saturday at 9:00 pm.</li><li>Register for the game by entering your real name and clicking Register.  An ID will be generated for you, please record it somewhere. Then log in and upload your picture.</li><li>You can also register and pay the $5 entry in person with the Admin, Jon Pawelko, at PorcFest (Guy with the orange backpack).  Please reduce bandwidth bottlenecks at PorcFest by registering and uploading your picture ahead of time.</li><li>Keep your browser open on the Assassin website and it will automatically update with game status and target changes.  Or login occasionally to check for changes.</li><li>Ages 13 and up.</li><li>Water guns are $1 or you can bring your own.  However, water guns are not required.  You can use any method to assassinate your target.</li><li>The game will be paused nightly.  No assassinations are valid between 9 PM and 9 AM.</li><li>Contact Jon through the PorcFest event on the Whova App if you have any questions or issues.  You can post general messages on the Whova – PorcFest Assassin Group.</li><li>Once you are registered, paid, and your picture is approved, you will be placed in the Waiting Queue.</li><li>If you upload your own picture, take the photo with a secret hand symbol underneath your face.  If someone attempts to assassinate you, you can ask them for your secret symbol.  If they don’t know your symbol, that means they didn’t see your picture and are trying to trick you into thinking you are their target.  If someone knows your hand symbol, you can still request they log in and show you as their target if you are suspicious.</li><li>You are officially playing in the game when your status changes to Active.  You will see the name and picture of your target on this website when you are logged in.</li><li>You assassinate your target by getting pure water on them or their clothes without anyone other than your target as a witness.  If another person witnessed the event, the assassination failed but can be attempted again later.</li><li>A 'witness' is someone who was aware that the target was being doused at the exact time of the douse, but does not need to see the water.  It's not enough to see the aftermath or even the surprised yelp from the victim.</li><li>One who does not wish to count as a witness does not count as a witness. However, there is a limit of 2 'Declined' witnesses per assassination attempt.</li><li>Log your successful assassination on the website by entering the name of your Target's Target and clicking the 'Confirm Assassination' button.</li><li>If you're assassinated, you must immediately share the name of your target with your assassin so that they can continue playing.  Remember to ask the person who assassinated you to identify your hand symbol to ensure that you are actually their target.</li><li>One time per game, the admin will “Drop a Bomb”.  This will release all Waiting players into the game and re-shuffle all target assignments.  Any assassinations that are not logged on the website before the bomb is dropped do not count.</li><li>To minimize disruption, anyone under the roof of a scheduled presentation is safe for the duration of that presentation.  A presentation is defined as an event at which attendants are intended to listen to a presentation.</li><li>A player may stun their assassin by dousing them with water. This prevents that assassin from assassinating them for 60 minutes.  Targets can douse their assassin at any time to reset the 60 minute safe period.</li><li>Assassinations should be recorded on the website immediately to ensure accurate record keeping.  By reporting here, you get the picture of your next target immediately.</li><li>If you leave PorcFest before 9 PM on Saturday, please use the Quit Game feature to free up your Assassin to obtain a new target.</li><li>If you leave PorcFest for more than 5 hours, please use the “Take a Break” feature.  You can use the “Return From Break” feature to return to the Waiting Queue after 5 hours.  This will also free up your Assassin to obtain a new target.</li><li>Players may join after the game has started.  Newcomers that choose to join ASAP are inserted into the Waiting Queue and are released into the game upon one of several events: an assassination, a break, a quit, or a bomb.  If you are in the Waiting Queue, it is your responsibility to check for status frequently as you may be entering the game at any time.  If you don't want to enter ASAP, see the following 'Scheduled' feature when you register.  </li><li>A new feature this year allows you to enter a running game at a specific time using the 'Scheduled' start registration.  The message under the registration area shows the next scheduled start time.  Set your phone alarm for this time to remind yourself you're in the game.</li><li>If you are eliminated, you may re-enter at any time.  The cost is $5 or you may forfeit one bounty if you have earned any using the “Buy Back In” Feature.  You can continue to rebuy online if you have bounties accrued.</li><li>Each assassination you perform will earn you $5.  A 10% tip to the admin will be applied at 4 assassinations and above, capped at $5.  You may request your accumulated prize money any time after the game ends or after you are eliminated.</li><li>If your target is a Celebritarian, you earn an extra $5.<li>The 'witness' rules can be better understood by imagining that water is an undetectable poison that kills hours after contact.  If you witness someone dousing another with some liquid, you would immediately suspect something amiss and could confront the assassin on the spot and get the victim an antidote.  If you don't see the act as it occurs, the poison goes undetected by the victim and the assassination is successful.</li></ol>";
-
-
-// ----- Initialize Firebase -----------------------------------------------------
-// Get the config info from the database settings area on your firestore database
-
-var config;
-
-if (firebaseDB == FIRESTORE_DB_1)
-{
-  config =
-  {
-      apiKey: "AIzaSyBB4kKWj-T1TH59Lyk_gaic5f1ElgLwJLE",
-      authDomain: "assassinfirestoretest1.firebaseapp.com",
-      databaseURL: "https://assassinfirestoretest1.firebaseio.com",
-      projectId: "assassinfirestoretest1",
-      storageBucket: "assassinfirestoretest1.appspot.com",
-      messagingSenderId: "54139984085"
-  };
-}
-else
-{
-  config =
-  {
-      apiKey: "AIzaSyDV4SiK3fKshX681ZABQ1xEFHX9URz71I0",
-      authDomain: "assassintestdb2.firebaseapp.com",
-      databaseURL: "https://assassintestdb2.firebaseio.com",
-      projectId: "assassintestdb2",
-      storageBucket: "assassintestdb2.appspot.com",
-      messagingSenderId: "356236457364"
-  };
-}
-
-// init firebase
-firebase.initializeApp(config);
-
-// create shorthand reference to the database
-var db = firebase.firestore();
-
-// const settings = {timestampsInSnapshots: true};
-// db.settings(settings);
-
-// Get a reference to the storage service, which is used to create references in your storage bucket
-var storage = firebase.storage();
-var storageRef = storage.ref();
-
-// -----  end init firebase ---------------------------------------
-
-// global html body variable
-var myBody = document.getElementById("myBody");
-
-// global region and html variables
-var loginRegion = "";
-var buttonStripRegion = "";
-
-var headerHTML = "Assassin Player Application<br>";
-
-var loginOrRegisterHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'> &nbsp  <button id='registerButton' onclick='registerButtonClick()' class='button'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button><br> <form id='registrationTypes' action=''> <input type='radio' name='registration' checked='checked' id='registerASAP'><span id='registrationLabelASAP'>ASAP</span> <input type='radio' name='registration' id='registerSchedule'><span id='registrationLabelScheduled'>Scheduled</span><br> </form>";
-
-var loginOnlyHTML = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>";
-
-var loginOrRegisterNoCheckboxes = "<span id='myIdInputLabel'>ID:</span>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp &#8239<input type='text' id='idInputBox' size='10'> &nbsp <button id='logInButton' onclick='loginButtonClick()' class='button'>Log In</button><br>-or-<br><span id='myRegisterNameLabel'>Real Name: </span><input type='text' id='nameInputBox' value='' size='10'>  &nbsp <button id='registerButton' onclick='registerButtonClick()' class='button'>Register</button> &nbsp <button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button><br>";
-
-var playerDataHTML = "<span id='myIdLabel'>My ID: </span><span id = 'myId'></span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'></span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'></span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'></span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'></span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'></span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'></span>";
-
-var myTargetDataHTML = "<span id='myTargetsPictureLabel'>" + CONFIRM_KILL_LABEL + "</span><img id='targetPicture' src=''><br>";
-
-var confirmKillHTML = "<span id='targetNameLabel'>" + CONFIRM_KILL_LABEL + "</span><input type='text' id='targetNameBox' value='' size='12'> <br> <button id='confirmKillButton' onclick='confirmAssassinationButtonClick()' class='button'>Confirm Assassination</button><br>";
-
-var messageHeaderHTML = "<span id='messageBoardLabel'>--- Message Board (Newest Message on Top) --- </span>"
-var statsRegtionHTML = "<span id='statsLabel'>Statistics: </span> <div id = 'statsData'></div>"
-
-var buttonStrip;
-var buyBackInButtonHTML = "<button id='buyBackInButton' onclick='buyBackInButtonClick()' class='button'>Buy Back In</button>";
-var quitGameButtonHTML = "<button id='quitGameButton' onclick='quitGameButtonClick()' class='button'>Quit Game</button>";
-var rulesButtonHTML = "<button id='rulesButton' onclick='rulesButtonClick()' class='button'>View Rules</button>";
-var logOffButtonHTML = "<button id='logOutButton' onclick='logOffButtonClick()' class='button'>Log Off</button>";
-
-var volunteerButtonHTML = "<button id='volunteerButton' onclick='volunteerButtonClick()' class='button'>Volunteer</button>";
-var takeABreakButtonHTML = "<button id='takeABreakButton' onclick='takeABreakButtonClick()' class='button'>Take a Break</button>";
-var returnFromBreakButtonHTML = "<button id='returnFromBreakButton' onclick='returnFromBreakButtonClick()' class='button'>Return From Break</button>";
-
-var pictureAreaHTML  = "<span id='playerPictureInputLabel'>Choose your picture using the Browse button,<br> then click Upload</span> <input type='file' id='playerPictureInput' class='button'> <br><br> <button id='uploadPictureButton' onclick='uploadPictureButtonClick()' class='button'>Upload</button><br> <br>";
-var myPictureAreaHTML = "<div id='myPictureLabel'></div> <img id='myPicture' src=''>";
-var viewMyPictureButtonHTML = "<button id='viewMyPictureButton' onclick='viewMyPictureButtonClick()' class='button'>View My Picture</button>";
-var rulesRegionHTML = "<u>Rules: </u><br><br>Here are the rules";
-
-// Global vars to hold player  data  ----------------------
-var playerId = "";
-var name = "";
-var status = PLAYER_STATUS_LOGGED_OFF;  // player status
-var loggedIn = false;
-var iVolunteered = false;
-var myPicApproved = 0;
-var myPicFileName = "";
-
-var showMyPic = false;
-var myURL = "";
-var owed = 0;
-var total = 0;
-var targetName = "";
-var targetId = "";
-var targetType = 0;   // default to regular vs celebrity
-var nameOfTargetsTarget = "";
-var myLinkRef; // reference to my link in the chain
-var bombAlerted = 0;  // specific to the player
-var showRules = false;
-var statsOnlyChange = false;
-
-// data from Game Data on db
-var gameStatus = GAME_STATUS_NOT_STARTED;  // default
-var morningStartTime;
-var nightEndTime;
-var minBreakLength = MIN_LENGTH_BREAK_DEFAULT;
-var volunteerNeeded = false;
-var nextScheduledStart = new Date();
-var myRegistrationType; // either asap or Scheduled
-var bombDropped = 0;
-var statsTotal = 0;
-var statsWaiting = 0;
-var statsSched = 0;
-var statsActive = 0;
-var statsTotalKills = 0;
-var statsTodaysKills = 0;   // zzz - need to have reset each day
-var statsCurrentLeader = 0;
-
-var picResizeTimer;
-var picResizeTimer2;
-var progressCounter = 0;  // picture upload counter
-// unsubscribe global vars
-var playerUnsubscribe;  // var to store player subscription, needed for later unSubscribe
-var linkUnsubscribe;    // var to store link subscription
-var gameDataUnsubscribe;  // var to store game data subscription
-
-// create an array of messages for display to message board, grab reference to screen message board
-var messages = new Array;
-var errors = db.collection("errors");
-var events = db.collection("events");
-
-// ------------------------------------------------------------------
-// Start of actual code ---------------------------------------------
-
-// Handle Game Data
-// get game status and update field,  create a reference to the document
-var gameDataRef = db.collection("gameData").doc("gameData");
-
-gameDataRef.get().then(function(doc)
-{
-
-  if (doc.exists)
-  {
-
-      gameStatus = doc.data().status;
-      volunteerNeeded = doc.data().volunteerNeeded;
-
-      // update needed here or nearby - need to create a listener on game status
-      // document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);  // yyy
-      console.log("Game status is " + decodeGameStatus(gameStatus));
-
-      // if min break length doesn't exist in db, default to value set here in code
-      if (doc.data().minBreakLength == 0)
-        minBreakLength = MIN_LENGTH_BREAK_DEFAULT;
-      else
-        minBreakLength = doc.data().minBreakLength;
-
-      console.log("Min break length is " + minBreakLength);
-
-      // set global vars
-      nextScheduledStart = doc.data().nextScheduledStart;
-      statsTotal = doc.data().statsTotal;
-      statsWaiting = doc.data().statsWaiting;
-      statsSched = doc.data().statsSched;
-      statsActive = doc.data().statsActive;
-      statsTotalKills = doc.data().statsTotalKills;
-      statsTodaysKills = doc.data().statsTodaysKills;
-      statsCurrentLeader = doc.data().statsCurrentLeader;
-      bombDropped = doc.data().bombDropped;
-      morningStartTime = doc.data().morningStartTime;
-      nightEndTime = doc.data().nightEndTime;
-      // gameStart = doc.data().gameStart;
-
-      var tempDate = nextScheduledStart.toDate();
-
-      if (volunteerNeeded == true)
-      {
-          console.log("Volunteer Needed is true");
-          postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
-      }
-
-      if (gameStatus == GAME_STATUS_NOT_STARTED)
-      {
-        console.log("Game not started -------------------");
-        postMessage(MESSAGE_TEXT_GAME_START);
-      }
-      else
-      {
-
-      console.log("Game started -------------------");
-       postMessage(MESSAGE_TEXT_NEXT_START + tempDate);
-      }
-
-      postMessage(MESSAGE_TEXT_WELCOME);
-
-      statsOnlyChange = false;
-      renderGame(status);
-
-  }  // end if gameData doc exists
-  else
-  {
-    console.log("Game Data Retrieval error, sometimes happens even though no issue");
-    postMessage(MESSAGE_TEXT_FATAL_ERROR);
-    statsOnlyChange = false;
-    renderGame(status);
-    postError(playerId,ERROR_GAME_DATA_REF_DOESNT_EXIST);
-  }
-}).catch(function(error) {
-  console.log("Game Data Retrieval error, sometimes happens even though no issue");
-  //postMessage(MESSAGE_TEXT_FATAL_ERROR);
-  postError(SYSTEM_ID,ERROR_GAME_DATA_REF_GET_FAILED);
-  //console.log("Error getting gameRefData.get() document:", error);
-  });
-
-// --------------------------------------------------------------------------
-// subscribe to change in game status **************  Subscribe *************
-
-gameDataUnsubscribe = gameDataRef.onSnapshot(function(doc)
-{
-    console.log("Within Outer Game - Subscriber on game status change called. Current status is " + decodeGameStatus(gameStatus) + " New status is " + decodeGameStatus(doc.data().status));
-
-    // alert(document.getElementById("myBody").innerHTML);
-
-    if (doc.exists)
-    {
-        var volunteerChanged = false;
-
-        // turn on or off volunteer button - Player needs to be active.
-        if ((doc.data().volunteerNeeded == true) && (status == PLAYER_STATUS_ACTIVE))
-        {
-            // document.getElementById("volunteerButton").style.visibility = "visible";  // yyy
-            postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
-            volunteerNeeded = true;
-            volunteerChanged = true;
-        }
-        else
-        {
-          if ((doc.data().volunteerNeeded == false) && (volunteerNeeded == true))
-          {
-              postMessage(MESSAGE_TEXT_VOLUNTEER_FILLED);
-              volunteerNeeded = false;
-              volunteerChanged = true;
-          }
-
-          // document.getElementById("volunteerButton").style.visibility = "hidden";  // yyy
-        }
-
-        // console.log("Bomb dropped current = " + bombDropped + "  Bomb dropped from db = " + doc.data().bombDropped);
-
-        var bombJustDropped = false;
-
-        if ((bombDropped == 0) && (doc.data().bombDropped == 1))
-        {
-            console.log("Bomb just dropped ---------------------- bomb dropped local in code = " + bombDropped + "   bomb dropped from db is " + doc.data().bombDropped);
-            bombJustDropped = true;
-
-            postMessage(MESSAGE_TEXT_BOMB_DROPPED);
-            bombDropped = 1;
-
-            // // create a reference to the document
-            var playerRef = db.collection("players").doc(playerId);
-
-            playerRef.update({
-              bombAlerted: 1
-            })
-            .then(function() {
-              console.log("Players status update success - waiting buy back in.");
-            })
-            .catch(function(error) {
-              console.error("Error player status update to db - waiting buy back in", error);
-            });
-
-        }
-
-        // if only a stats change, set that flag and don't call the full render game
-
-        if ((volunteerNeeded == false ) && (bombJustDropped == false))
-        {
-            console.log("Should not get here after bomb dropped.");
-            if (statsTotal != doc.data().statsTotal)
-            {
-              statsOnlyChange = true;
-              console.log("Total player change stats ------------------------------");
-            }
-
-            if (statsWaiting != doc.data().statsWaiting)
-            {
-              statsOnlyChange = true;
-              console.log("Waiting player change stats ------------------------------");
-            }
-
-            if (statsSched != doc.data().statsSched)
-            {
-              statsOnlyChange = true;
-              console.log("Scheduled player change stats ------------------------------");
-            }
-
-            if (statsActive != doc.data().statsActive)
-            {
-              statsOnlyChange = true;
-              console.log("Active player change stats ------------------------------");
-            }
-
-            if (statsTotalKills != doc.data().statsTotalKills)
-            {
-              statsOnlyChange = true;
-              console.log("Total Kills  change stats ------------------------------");
-            }
-
-            if (statsTodaysKills != doc.data().statsTodaysKills)
-            {
-              statsOnlyChange = true;
-              console.log("Today kills change stats ------------------------------");
-            }
-
-            if (statsCurrentLeader != doc.data().statsCurrentLeader)
-            {
-              statsOnlyChange = true;
-              console.log("Current Leader change stats ------------------------------");
-            }
-        }
-
-        // update global vars  -  thought this should be done earlier, but maybe not? yyy
-        nextScheduledStart = doc.data().nextScheduledStart;
-
-        statsTotal = doc.data().statsTotal;
-        statsWaiting = doc.data().statsWaiting;
-        statsSched = doc.data().statsSched;
-        statsActive = doc.data().statsActive;
-        statsTotalKills = doc.data().statsTotalKills;
-        statsTodaysKills = doc.data().statsTodaysKills;
-        statsCurrentLeader = doc.data().statsCurrentLeader;
-
-        // only process change if status changes or bomb dropped, check for other data changes above
-        if ((gameStatus != doc.data().status) || (bombJustDropped == true))
-        {
-            var oldStatus = gameStatus;
-            statsOnlyChange = false;
-
-            gameStatus = doc.data().status;
-
-            switch (gameStatus)
-            {
-              case GAME_STATUS_ACTIVE:
-
-                  var tempDate = new Date((nextScheduledStart).toDate());
-
-                  if (bombJustDropped != true)
-                      postMessage(MESSAGE_TEXT_GAME_STATUS_ACTIVE);
-
-
-                  if (oldStatus == GAME_STATUS_NOT_STARTED)
-                      postMessage(MESSAGE_TEXT_NEXT_START + tempDate);
-
-                  renderGame(status);
-                  break;
-
-              case GAME_STATUS_NOT_STARTED:
-
-                  renderGame(status);
-                  break;
-
-              case GAME_STATUS_COMPLETED:
-
-                  console.log("Game status changed to completed. Subscriber called. Status is " + decodeGameStatus(gameStatus));
-                  status = PLAYER_STATUS_GAME_OVER;  // player status
-
-                  // change player status on the db only if logged in.
-
-                  if (loggedIn == true)
-                  {
-                      console.log("Player is logged in.  Updating status on db to player status game over. id is " + playerId);
-                      // set my player status to waiting
-                      db.collection("players").doc(playerId).update({
-                        status: PLAYER_STATUS_GAME_OVER
-                      })
-                      .then(function() {
-                        console.log("Player status set to Game Over.");
-                      })
-                      .catch(function(error) {
-                        console.error("Error Player status set to Game Over.", error);
-                      });
-                  }
-
-                  postMessage(MESSAGE_TEXT_GAME_COMPLETED);
-                  renderGame(PLAYER_STATUS_GAME_OVER);
-                  break;
-
-              case GAME_STATUS_PAUSED:
-
-                  postMessage(MESSAGE_TEXT_PAUSED_GAME);
-                  console.log("Game status changed to paused. Subscriber called. Status is " + decodeGameStatus(gameStatus));
-
-                  // move myself to queue if I'm active, otherwise ignore, could be on break
-                  if (status == PLAYER_STATUS_ACTIVE)
-                  {
-                      console.log("Paused player status is " + status);
-                      // move to waiting
-                      status = PLAYER_STATUS_WAITING;
-
-                      // set my player status to waiting
-                      db.collection("players").doc(playerId).update({
-                        status: PLAYER_STATUS_WAITING
-                      })
-                      .then(function() {
-                        console.log("Player status set to waiting after game pause.");
-                      })
-                      .catch(function(error) {
-                        console.error("Error Player status set to waiting after game pause.", error);
-                      });
-
-                      // set waiting queue to just me
-                      var tempList = new Array;
-                      tempList.push(playerId);
-
-                      db.collection("queues").doc("waiting").set({
-                          players: tempList
-                        })
-                        .then(function() {
-                          console.log("db setting waiting queue after pause success");
-                        })
-                        .catch(function(error) {
-                          console.error("db setting waiting queue after pause failed", error);
-                        });
-
-                        statsActive = 0;
-                        statsWaiting = 1;
-
-                        db.collection("gameData").doc("gameData").update({
-                          statsActive: 0,
-                          statsWaiting: 1
-                        })
-                        .then(function() {
-                          console.log("Decr stats active by 1");
-                        })
-                        .catch(function(error) {
-                          console.error("Decr stats active failed", error);
-                        });
-
-
-                      renderGame(PLAYER_STATUS_WAITING);
-
-                  } // end if player is active
-
-                  break;
-
-              case GAME_STATUS_OVERNIGHT:
-
-                  postMessage(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
-
-                  if (loggedIn == true)
-                      document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);
-
-                  renderGame(status);
-
-                  break;
-
-              case GAME_STATUS_MAINTENANCE:
-
-                  postMessage(GAME_STATUS_MAINTENANCE_TEXT);
-
-                  if (loggedIn == true)
-                      document.getElementById("gameStatus").innerHTML = decodeGameStatus(gameStatus);
-
-                  renderGame(status);
-
-                  break;
-
-              default:
-
-            }
-        }
-        else
-        {
-            if ((statsOnlyChange == true) || (volunteerChanged == true))
-            //console.log("Render game called from game subscriber  ------- should be executed after bomb drop.");
-              renderGame(status);
-        }
-
-    } // end if doc exists
-    else
-    {
-      postMessage(MESSAGE_TEXT_FATAL_ERROR);
-      postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
-      console.log("Game data doc was deleted in subscribe.");
-    }
+// Put your JavaScript in this file.
+'use strict'; // Enable "strict mode".  Note: This *must* be the first statement in the script.
+// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode
+
+// Constants - These are global variables that can't be changed.  Need to figure out exactly how to implement
+var UP = 0;
+var DOWN = 1;
+var LEFT = 2;
+var RIGHT = 3;
+var UP_LEFT = 4;
+var UP_RIGHT = 5;
+var DOWN_LEFT = 6;
+var DOWN_RIGHT = 7;
+
+// key codes
+var SPACE_BAR_KEY = 32;
+var ARROW_LEFT = 37;
+var ARROW_UP = 38;
+var ARROW_RIGHT = 39;
+var ARROW_DOWN = 40;
+
+// Square status codes
+var SQ_STATUS_PAC_ON_PELLET = 0;
+var SQ_STATUS_PAC_ON_BLANK = 1;
+var SQ_STATUS_PAC_ON_POWER_PELLET = 2;
+var SQ_STATUS_PAC_ON_GHOST = 3;
+var SQ_STATUS_PAC_ON_GHOST_ON_POWER_PELLET_STATUS = 4;
+var SQ_STATUS_PAC_ON_BOMB = 5;
+var SQ_STATUS_PAC_ON_GOOD_BOMB = 6;
+var SQ_STATUS_PAC_ON_GHOST_INVINCIBLE = 7;
+
+var SQ_STATUS_GHOST = 10;
+var SQ_STATUS_GHOST_INVINCIBLE = 11;
+var SQ_STATUS_GHOST_CHOMPER = 12;
+var SQ_STATUS_GHOST_TELEPORTER = 13;
+var SQ_STATUS_GHOST_PEEWEE = 14;
+var SQ_STATUS_GHOST_PEEWEE_ON_ONE_THIRD = 15;
+var SQ_STATUS_GHOST_PEEWEE_ON_TWO_THIRDS = 16;
+var SQ_STATUS_GHOST_BOMBER = 17;
+var SQ_STATUS_GHOST_INVISIBLE = 18;
+var SQ_STATUS_GHOST_MEGA = 19;
+var SQ_STATUS_GHOST_SPLITTER = 20;
+var SQ_STATUS_GHOST_HOPPER = 21;
+
+// Items
+var SQ_STATUS_BLANK = 100;
+var SQ_STATUS_WALL = 101;
+var SQ_STATUS_PELLET = 102;
+var SQ_STATUS_POWER_PELLET = 103;
+var SQ_STATUS_BOMB_ON_BLANK = 104;
+var SQ_STATUS_GOOD_BOMB = 105;
+
+// Audio files
+var BAJIKO = "bajiko forest.mp3";
+var TEAM_MASAKA = "team masaka victory.mp3";
+var HEAVEN_WIND_CHIMES = "heaven wind chimes.mp3";
+
+var SQUARE_SIZE = 50; // pixel size of individual squares
+var SAFE_ZONE_GHOST = 3; // rows/columns of safety in upper left corner
+var SAFE_ZONE_WALL = 2; //
+
+var GHOST_SPEED_RANGE_LOW = 200; // fastest guy - low + midpoint of range = 1 second
+var GHOST_SPEED_RANGE = 1600;
+
+var GHOST_INTEL_RANGE = 2000;
+
+var RESET_GHOST_DELAY = 5;
+
+var PACMAN_CLASSIC_RIGHT = "<img src='Pacman icon right.jpg'>";
+var PACMAN_CLASSIC_LEFT = "<img src='Pacman icon left.jpg'>";
+var PACMAN_CLASSIC_UP = "<img src='Pacman icon up.jpg'>";
+var PACMAN_CLASSIC_DOWN = "<img src='Pacman icon down.jpg'>";
+var PACMAN_CLASSIC_RIGHT_PP = "<img src='Pacman icon right PP.jpg'>";
+var PACMAN_CLASSIC_LEFT_PP = "<img src='Pacman icon left PP.jpg'>";
+var PACMAN_CLASSIC_UP_PP = "<img src='Pacman icon up PP.jpg'>";
+var PACMAN_CLASSIC_DOWN_PP = "<img src='Pacman icon down PP.jpg'>";
+
+var JOEY_RIGHT = "<img src='joeyRight.jpg'>";
+var JOEY_LEFT = "<img src='joeyLeft.jpg'>";
+var JOEY_UP = "<img src='joeyUp.jpg'>";
+var JOEY_DOWN = "<img src='joeyDown.jpg'>";
+var JOEY_RIGHT_PP = "<img src='joeyRightPP.jpg'>";
+var JOEY_LEFT_PP = "<img src='joeyLeftPP.jpg'>";
+var JOEY_UP_PP = "<img src='joeyUpPP.jpg'>";
+var JOEY_DOWN_PP = "<img src='joeyDownPP.jpg'>";
+
+// these are the actual global variables used
+var PACMAN_RIGHT;
+var PACMAN_LEFT;
+var PACMAN_UP;
+var PACMAN_DOWN;
+var PACMAN_RIGHT_PP;
+var PACMAN_LEFT_PP;
+var PACMAN_UP_PP;
+var PACMAN_DOWN_PP;
+
+var ICON_GHOST = "<img src='blueGhost.jpg'>";
+var ICON_GHOST_INVINCIBLE = "<img src='invincibleGhost.jpg'>";
+var ICON_GHOST_CHOMPER = "<img src='chomperGhost.jpg'>";
+var ICON_GHOST_BOMBER = "<img src='bomberGhost.jpg'>";
+var ICON_GHOST_INVISIBLE = "<img src='InvisibleGhost.jpg'>";
+var ICON_GHOST_PEEWEE = "<img src='peeweeGhost.jpg'>";
+var ICON_GHOST_PEEWEE_ON_ONE_THIRD = "<img src='peeweeOnOneThird.jpg'>";
+var ICON_GHOST_PEEWEE_ON_TWO_THIRDS = "<img src='peeweeOnTwoThirds.jpg'>";
+var ICON_GHOST_TELEPORTER = "<img src='teleporterGhost.jpg'>";
+var ICON_GHOST_MEGA = "<img src='megaGhost.jpg'>";
+var ICON_GHOST_SPLITTER = "<img src='splitterGhost.jpg'>";
+var ICON_GHOST_HOPPER = "<img src='hopperGhost.jpg'>";
+
+
+var ICON_PLAYER = "<img src='sunIcon.jpg'>";
+var ICON_WALL = "<img src='wallIcon.jpg'>";
+var ICON_WALL_TWO_THIRDS = "<img src='wallIconTwoThirds.jpg'>";
+var ICON_WALL_ONE_THIRD = "<img src='wallIconOneThird.jpg'>";
+var ICON_PELLET = "<img src='PelletIcon.jpg'>";
+var ICON_BOMB = "<img src='BombIcon1.jpg'>";
+var ICON_POWER_PELLET = "<img src='PowerPellet.jpg'>";
+var ICON_GOOD_BOMB = "<img src='GoodBombIcon.jpg'>";
+
+// wall statuses
+var NO_WALL = 0;
+var WALL = 3;
+var WALL_TWO_THIRDS = 2;
+var WALL_ONE_THIRD = 1;
+
+// simple helper variables for booleans
+var NO_PELLET = 0;
+var PELLET = 1;
+var POWER_PELLET = 1;
+var GHOST = 1;
+var GOOD_BOMB = 1;
+var NO_GOOD_BOMB = 0;
+var BOMB = 1;
+var NO_GHOST = -1;
+
+var POWER_PELLET_OFF = 0;
+var POWER_PELLET_ON = 1;
+var POWER_PELLET_DELAY = 5; // seconds
+var POWER_PELLET_GHOST_RATIO = 4; // ghosts per power pellet
+
+// Ghost array index positions, first field is the position on the board, second position is the variable created when the timer function was created.  This must be used to delete the ghost processes when the game ends.
+var GHOST_INDEX_POSITION = 0; // position on the Board
+var GHOST_INDEX_TIMER = 1; // move counter id
+var GHOST_INDEX_INTEL = 2; // intelligence
+var GHOST_INDEX_TYPE = 3; // ghost type
+var GHOST_INDEX_DEATH_TIMER_ID = 4; // ghost type
+
+// Ghost Types
+var GHOST_TYPE_STANDARD = 0;
+var GHOST_TYPE_INVINCIBLE = 1;
+var GHOST_TYPE_CHOMPER = 2;
+var GHOST_TYPE_TELEPORTER = 3;
+var GHOST_TYPE_PEEWEE = 4;
+var GHOST_TYPE_BOMBER = 5;
+var GHOST_TYPE_INVISIBLE = 6;
+var GHOST_TYPE_MEGA = 7;
+var GHOST_TYPE_SPLITTER = 8;
+var GHOST_TYPE_HOPPER = 9;
+
+
+// // Ghost Type Percentages for Random mode
+
+var GHOST_PERCENT_STANDARD = 0;
+var GHOST_PERCENT_INVINCIBLE = 0;
+var GHOST_PERCENT_CHOMPER = 0;
+var GHOST_PERCENT_TELEPORTER = 0;
+var GHOST_PERCENT_PEEWEE = 0;
+var GHOST_PERCENT_BOMBER = 0;
+var GHOST_PERCENT_INVISIBLE = 0;
+var GHOST_PERCENT_MEGA = 0;
+var GHOST_PERCENT_SPLITTER = 0;
+var GHOST_PERCENT_HOPPER = 0;
+
+// Ghost Type Percentages for Random mode - for Testing
+
+// var GHOST_PERCENT_STANDARD = 0;
+// var GHOST_PERCENT_INVINCIBLE = 0;
+// var GHOST_PERCENT_CHOMPER = 0;
+// var GHOST_PERCENT_TELEPORTER = 0;
+// var GHOST_PERCENT_PEEWEE = 0;
+// var GHOST_PERCENT_BOMBER = 0;
+// var GHOST_PERCENT_INVISIBLE = 0;
+// var GHOST_PERCENT_MEGA = 40;
+// var GHOST_PERCENT_SPLITTER = 60;
+
+
+// Special ghost settings
+var GHOST_TELEPORT_PERCENTAGE = 10;
+var GHOST_BOMBER_PERCENTAGE = 5;
+var GHOST_INVISIBLE_PERCENTAGE = 90;
+var MEGA_GHOST_INTEL = 60;
+var MEGA_GHOST_SPEED = 4;
+var SPLITTER_GHOST_PERCENTAGE = 2;
+
+var BOMB_INDEX_POSITION = 0;
+var BOMB_INDEX_TIMER = 1;
+var SPECIAL_ITEM_DELAY1 = 20;
+var SPECIAL_ITEM_DELAY2 = 10;
+
+var NUMBER_OF_LEVELS = 8; // *** Hard coded number of story mode levels.  Game will end after this number.
+var GHOST_POINTS = 10;
+var EXTRA_LIFE_LEVEL = 250;
+
+var BOARD_SIZE_MIN = 4;
+var BOARD_SIZE_MAX = 25;
+var GHOST_PERCENTAGE_MAX = .25;
+
+var NO_BOMB = -1;
+var BOMBS_START_COUNT = 20;
+var BOMBS_START_COUNT_STORY_MODE = 3;
+var BOMB_DELAY = 1.8;
+
+var OFF_THE_BOARD = -999; // Ensure player isn't shown on the board in between rounds or kills
+var RESET_PLAYER_DELAY = 1.25; // Delay in seconds before resetting a killed player
+
+// 2 modes
+var MODE_RANDOM = 0;
+var MODE_STORY = 1;
+
+// 2 pac man modes
+var CLASSIC_PACMAN_MODE = 0;
+var JOEY_PACMAN_MODE = 1;
+
+// Scorekeeping
+var PAC_MAN_KEY = "PACMAN";
+
+// Story mode condition variables
+var DOOR_SQUARE_LEVEL_1 = 60; // Level 1 condition
+var chomperKilled = false; // level 2 condition
+var POWER_PELLET_DELAY_STORY_MODE_LEVEL_2 = 30000; // a minute delay before pp comes to rescue
+var myPowerPelletTimerVar = -1; // stays -1 if the timer is never used, otherwise stores actual value.  Only need 1.
+
+var PACMAN_RULES = "Rules for Ultimate Pacman.\nFirst choose Random or Story Mode.  Random mode will have random wall and ghost configurations.  Story Mode is a pre-defined adventure with additional instructions on finishing each level.\nExtra life every " + EXTRA_LIFE_LEVEL + " points in Random Mode.\n1 point per pellet and " + GHOST_POINTS + " for eating a ghost.\nPlayers start with " + BOMBS_START_COUNT + " bombs and can collect more during play (Bomb with check mark). \nPress the space bar to drop a bomb.\nBombs destroy any walls and Pac Man adjacent to the bomb square.  Ghosts are immune to bombs.\nEat Power Pellets to have " + POWER_PELLET_DELAY + " seconds of time to eat ghosts.\nIn Random Mode, we suggest one power pellet for each " + POWER_PELLET_GHOST_RATIO + " ghosts.\nSee Legend for Ghost Types.";
+
+// global variables
+var currentSquare = 0; // player square, default to zero
+var i; // mostly for loops
+var startButton = document.getElementById("startButton");
+var rulesButton = document.getElementById("rulesButton");
+var resetZeroButton = document.getElementById("resetZeroButton");
+var checkGhostTotalButton = document.getElementById("checkTotalButton");
+var randomGhostTotalLabel = document.getElementById("ghostPercentTotal");
+
+var messageBox = document.getElementById("messageBox"); // Game status message board
+
+// intel slider
+var rgiSlider = document.getElementById("randomGhostIntelSlider"); // rgi = random ghost intelligence
+
+// speed slider
+var rgsSlider = document.getElementById("randomGhostSpeedSlider"); // rgi = random ghost intelligence
+
+var boardSize; // dimension of board (length or width).  Total squares is (boardSize * boardSize)
+var numberOfGhosts = 0;
+var ghostSpeedAddedTogether = 0 // used to calculate average ghost speed
+var numberOfWalls = 0;
+var numberOfWallsStart = 0;
+var gameMode = 0; // default to Story Mode
+var pacManMode = 0; // default to classic pacman
+var gameStarted = false;
+var LIVES_START = 3;
+var lives = LIVES_START;
+var freeLives = 1; // counter used to check free live tiers
+var pelletsLeft = 0; // global var to store the # of pellets remaining in the round, will be set in setup
+var powerPelletStatus = 0; // start "off the pellet"
+var playerRank = 1;
+var playerDirection = RIGHT; // starting direction of pac man
+var bombsCount = 0;
+var currentLevel = 0;
+var ghostResetSquare;
+var goodBombTimerID1 = -1
+var goodBombTimerID2 = -1;
+var doorTimerVar = -1; // init
+var chomperKilledTimerVar = -1; // init
+var myPowerPelletTimerVar = -1;
+
+var originalSplitterCount = 0;
+
+
+// global arrays
+var ghosts = new Array;
+var walls = new Array;
+var pellets = new Array;
+var powerPellets = new Array;
+var bombs = new Array;
+var goodBombs = new Array;
+
+// var bajikoForest = new Audio('bajiko forest.mp3');  // removed this old style of audio
+var myAudio = new Audio(BAJIKO);
+
+// Retrieve user options from screen
+document.getElementById("livesVariable").innerHTML = LIVES_START;
+document.getElementById("scoreVariable").innerHTML = 0;
+document.getElementById("levelVariable").innerHTML = currentLevel;
+document.getElementById("bombsVariable").innerHTML = BOMBS_START_COUNT;
+
+window.alert(PACMAN_RULES);
+// ------------------------------------------------------------------------------
+
+rulesButton.addEventListener('click', function(e) {
+  alert(PACMAN_RULES);
 });
 
-// --------- end subscribe to change in game status ***********  Subscribe *************
+// ------------------------------------------------------------------------------
+//
+resetZeroButton.addEventListener('click', function(e) {
 
-// ----------------------------------------------------------------
+  document.getElementById("percentStandard").value = 0;
+  document.getElementById("percentInvincible").value = 0;
+  document.getElementById("percentChomper").value = 0;
+  document.getElementById("percentTeleporter").value = 0;
+  document.getElementById("percentPeeWee").value = 0;
+  document.getElementById("percentBomber").value = 0;
+  document.getElementById("percentInvisible").value = 0;
+  document.getElementById("percentMega").value = 0;
+  document.getElementById("percentSplitter").value = 0;
+  document.getElementById("percentHopper").value = 0;
 
-function getScreenData()
-{
+});
 
-    var tempId = document.getElementById("idInputBox").value;
+//  -----------------------------------------------------------------------------
+//
+checkGhostTotalButton.addEventListener('click', function(e) {
+  var tempTotal = 0;
 
-    // strip off extra space if necessary
-    if (String(tempId)[PLAYER_ID_LENGTH] == " ")
-    {
-      // splice off starting at the 8th position
-      console.log("8th space found, slice off extra characters, use first 8 only.");
-      playerId = String(tempId).slice(0,PLAYER_ID_LENGTH);
-    }
-    else
-    {
-      console.log("Setting id = " + tempId);
-      playerId = tempId;
-    }
+  tempTotal += Number(document.getElementById("percentStandard").value);
+  tempTotal += Number(document.getElementById("percentInvincible").value);
+  tempTotal += Number(document.getElementById("percentChomper").value);
+  tempTotal += Number(document.getElementById("percentTeleporter").value);
+  tempTotal += Number(document.getElementById("percentPeeWee").value);
+  tempTotal += Number(document.getElementById("percentBomber").value);
+  tempTotal += Number(document.getElementById("percentInvisible").value);
+  tempTotal += Number(document.getElementById("percentMega").value);
+  tempTotal += Number(document.getElementById("percentSplitter").value);
+  tempTotal += Number(document.getElementById("percentHopper").value);
 
-    name = document.getElementById("nameInputBox").value;
+  randomGhostTotalLabel.innerHTML = Number(tempTotal);
 
-}
-
-// --------------------------------------------------------------
-// Register with game
-
-function registerButtonClick()
-{
-
-    if (gameStatus == GAME_STATUS_MAINTENANCE)
-    {
-      alert(GAME_STATUS_MAINTENANCE_TEXT);
-      return;
-    }
-
-    getScreenData();
-    playerId = "";
-
-    console.log("Register button clicked id is " + playerId + "  Name is " + name);
-
-    if (name == "")
-    {
-      console.log("Blank name entered in name input box.");
-      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name is blank.");
-      statsOnlyChange = false;
-      renderGame(status);
-      return;
-    }
-    else
-    {
-
-      // error check on name - cycle through name and check each character
-
-      var validName = true;
-      var i = 0
-
-      while ((i<name.length) && (validName == true))
-      {
-
-          if ((name.charCodeAt(i)<65) || (name.charCodeAt(i)>122) || ((name.charCodeAt(i)>90) && (name.charCodeAt(i)<97)))
-            validName = false;
-          else {
-            i++;
-          }
-      }
-
-      if (validName == false)
-      {
-        console.log("Invalid name entered.");
-        postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Name can only be letters.");
-        statsOnlyChange = false;
-        renderGame(status);
-        return;
-      }
-
-    }
-
-    if ((document.getElementById("idInputBox").value != "") && (name != ""))
-    {
-      alert("You do not need to enter an ID to register.  Only your real name.  Your player ID will be automatically generated after you register and will be entered into the ID field on the screen.");
-    }
-
-    // check if game is available to register
-    // get game status and update field,  create a reference to the document
-    var gameDataRef = db.collection("gameData").doc("gameData");
-    gameDataRef.get().then(function(doc)
-    {
-        if (doc.exists)
-        {
-            if (doc.data().status == GAME_STATUS_COMPLETED)
-            {
-              // Can't register, game already over
-              console.log("Can't register, game already over.");
-              postMessage(MESSAGE_TEXT_CANT_REGISTER_GAME_OVER);
-            }
-            else  // move forward with registration
-            {
-                // register player
-
-                    // continue if name entered
-                    var tempId = "";
-                    var i;
-
-                    // loop through, creating 1 random digit at a time
-                    for (i=0; i<PLAYER_ID_LENGTH; i++)
-                    {
-                      tempId += String(Math.floor(Math.random() * 10));
-                    }
-
-                    tempId = String(tempId);
-                    console.log("Temp id created is " + tempId + " length is " + tempId.length);
-
-                    // check if this id is already in use - if yes, reject registration request
-                    var playerRef = db.collection("players").doc(tempId);
-
-                    playerRef.get().then(function(doc)
-                    {
-                        console.log("Player ref on temp id executed");
-
-                        if (doc.exists)
-                        {
-                            // player already exists, don't allow
-                            console.log("Error - Player already exists.");
-                            postMessage(MESSAGE_TEXT_PLAYER_ALREADY_EXISTS);
-                            postError(tempId, MESSAGE_TEXT_PLAYER_ALREADY_EXISTS);
-                            return;
-                        }
-
-                        console.log("Player doesn't exist.  About to add player to db.  Name is " + name);
-
-                        // Check if game is not started, if yes, then put in Register ASAP, else read choice from radio button
-                        if (gameStatus == GAME_STATUS_NOT_STARTED)
-                        {
-                            console.log("Game status is 'not started'");
-                            myRegistrationType = REGISTERED_ASAP;
-                        }
-                        else
-                        {
-                            console.log("Game status is not - 'not started'");
-                            // get the choice from the screen
-                            var myForm = document.getElementById("registrationTypes");
-
-                            if (myForm.registration[0].checked == true)
-                            {
-                                myRegistrationType = REGISTERED_ASAP;
-                            }
-                            else
-                            {
-                                myRegistrationType = REGISTERED_SCHEDULED;
-                            }
-
-                        } // end else
-
-                        // add player to the players db --------------------
-                        db.collection("players").doc(tempId).set({
-                          status: PLAYER_STATUS_REGISTERED,
-                          owed: 0,
-                          total: 0,
-                          paid: 0,
-                          pictureName: "",
-                          celeb: PLAYER_TYPE_REGULAR,
-                          pictureApproved: 0,
-                          registrationType: myRegistrationType,
-                          scheduledTime: nextScheduledStart,  // this will be ignored if registered ASAP
-                          name: name,
-                          bombAlerted: 0
-                        })
-                        .then(function()
-                        {
-                            console.log("Register player success. ID = " + tempId + " Name is " + name);
-                            postMessage(MESSAGE_TEXT_REGISTER_PLAYER);
-
-                            if (myRegistrationType == REGISTERED_ASAP)
-                              postEvent(EVENT_TYPE_PLAYER_REGISTER_SUCCESS_ASAP, tempId);
-                            else
-                              postEvent(EVENT_TYPE_PLAYER_REGISTER_SUCCESS_SCHED, tempId);
-
-                            playerId = tempId;
-                            status = PLAYER_STATUS_REGISTERED;
-                            statsOnlyChange = false;
-                            renderGame(status);
-                        })
-                        .catch(function(error) {
-                          console.error("Register player failed.", error);
-                          postError(tempId, MESSAGE_TEXT_REGISTER_PLAYER_FAILED);
-                          // zzzz
-                        });
-
-                        // add 1 to total players in game db
-                        gameDataRef.get().then(function(doc)
-                        {
-                            if (doc.exists)
-                            {
-                                console.log("Game Data exists, increasing total players by 1");
-                                // set initial message and data
-
-                                statsTotal = doc.data().statsTotal;
-
-                                // increasing total players by 1  ---------------------------------
-                                db.collection("gameData").doc("gameData").update({
-                                  statsTotal: statsTotal+1
-                                })
-                                .then(function() {
-                                  console.log("Increased total players by 1");
-                                })
-                                .catch(function(error) {
-                                  console.error("Set game status to Not Started failed", error);
-                                });
-                            } // error checking,
-                        });
+});
 
 
-                    }); // player ref get, check if player exists
+// ------------------------------------------------------------------------------
 
-            }   // end else - move forwared with registration
+function storyModeClicked() {
 
-        } // end if doc exists - needs error checking
-        else
-        {
-          postMessage(MESSAGE_TEXT_FATAL_ERROR);
-          postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
-          console.log("Game data doc missing in register button click.");
-        }
+  document.getElementById("boardSize").style.visibility = "hidden";
+  document.getElementById("wallsInput").style.visibility = "hidden";
+  document.getElementById("bombsInput").style.visibility = "hidden";
+  document.getElementById("ghostInput").style.visibility = "hidden";
 
-      }).catch(function(error) {
-        console.log("Error getting gameRefData.get() document in registerButtonClick:", error);
-        postError(SYSTEM_ID,ERROR_GAME_DATA_REF_GET_FAILED);
-    });
+  document.getElementById("randomGhostIntelSlider").style.visibility = "hidden";
+  document.getElementById("randomGhostSpeedSlider").style.visibility = "hidden";
+
+  document.getElementById("percentStandard").style.visibility = "hidden";
+  document.getElementById("percentInvincible").style.visibility = "hidden";
+  document.getElementById("percentChomper").style.visibility = "hidden";
+  document.getElementById("percentTeleporter").style.visibility = "hidden";
+  document.getElementById("percentPeeWee").style.visibility = "hidden";
+  document.getElementById("percentBomber").style.visibility = "hidden";
+  document.getElementById("percentInvisible").style.visibility = "hidden";
+  document.getElementById("percentMega").style.visibility = "hidden";
+  document.getElementById("percentSplitter").style.visibility = "hidden";
+  document.getElementById("percentHopper").style.visibility = "hidden";
 
 }
 
-// --------------------------------------------------------------
-// Log into the game
-// Allow player to log in even when game is over - check stats
+// ------------------------------------------------------------------------------
 
-function loginButtonClick()
-{
-    targetId = "";
-    getScreenData();
-    showRules = false;
+function randomModeClicked() {
 
-    if (playerId == "")
-    {
-        postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + " ID is missing.");
-        statsOnlyChange = false;
-        renderGame(status);
-        return;
+  document.getElementById("boardSize").style.visibility = "visible";
+  document.getElementById("wallsInput").style.visibility = "visible";
+  document.getElementById("bombsInput").style.visibility = "visible";
+  document.getElementById("ghostInput").style.visibility = "visible";
+
+  document.getElementById("randomGhostIntelSlider").style.visibility = "visible";
+  document.getElementById("randomGhostSpeedSlider").style.visibility = "visible";
+
+  document.getElementById("percentStandard").style.visibility = "visible";
+  document.getElementById("percentInvincible").style.visibility = "visible";
+  document.getElementById("percentChomper").style.visibility = "visible";
+  document.getElementById("percentTeleporter").style.visibility = "visible";
+  document.getElementById("percentPeeWee").style.visibility = "visible";
+  document.getElementById("percentBomber").style.visibility = "visible";
+  document.getElementById("percentInvisible").style.visibility = "visible";
+  document.getElementById("percentMega").style.visibility = "visible";
+  document.getElementById("percentSplitter").style.visibility = "visible";
+
+  document.getElementById("percentHopper").style.visibility = "visible";
+}
+
+
+// ------------------------------------------------------------------------------
+
+startButton.addEventListener('click', function(e) {
+  myAudio.pause();
+
+  // validate data here, update message with error, return
+  if (gameStarted == true) return;
+  else gameStarted = true;
+
+  document.getElementById("livesVariable").innerHTML = LIVES_START;
+  document.getElementById("scoreVariable").innerHTML = 0;
+  document.getElementById("bombsVariable").innerHTML = "";
+  document.getElementById("levelVariable").innerHTML = 0;
+  playerRank = 1;
+
+  // set or reset variables
+  bombsCount = BOMBS_START_COUNT;
+  lives = LIVES_START;
+  freeLives = 1;
+  currentLevel = 0;
+  currentSquare = 0; // player square, default to zero
+  numberOfGhosts = 0;
+  numberOfWalls = 0;
+  pelletsLeft = 0; // reset
+  ghostSpeedAddedTogether = 0;
+  powerPelletStatus = 0;
+  doorTimerVar = -1;
+  goodBombTimerID1 = -1
+  goodBombTimerID2 = -1;
+  chomperKilled = false;
+  originalSplitterCount = 0;
+
+  // check for Joey mode vs. Classic Pac man mode n  -------------------
+  var myPacManModesForm = document.getElementById("pacManGameModes");
+  var i = 0;
+
+  // loop through each mode listed
+  for (i = 0; i < myPacManModesForm.pacManGameMode.length; i++) {
+    if (myPacManModesForm.pacManGameMode[i].checked == true) {
+      pacManMode = i; // 0 is classic, 1 is Joey
+    }
+  } // end for
+
+  console.log("Mode Pac Man Mode chosen is " + pacManMode);
+
+  if (pacManMode == CLASSIC_PACMAN_MODE) {
+    PACMAN_RIGHT = PACMAN_CLASSIC_RIGHT;
+    PACMAN_LEFT = PACMAN_CLASSIC_LEFT;
+    PACMAN_UP = PACMAN_CLASSIC_UP;
+    PACMAN_DOWN = PACMAN_CLASSIC_DOWN;
+    PACMAN_RIGHT_PP = PACMAN_CLASSIC_RIGHT_PP;
+    PACMAN_LEFT_PP = PACMAN_CLASSIC_LEFT_PP;
+    PACMAN_UP_PP = PACMAN_CLASSIC_UP_PP;
+    PACMAN_DOWN_PP = PACMAN_CLASSIC_DOWN_PP;
+  } else {
+    PACMAN_RIGHT = JOEY_RIGHT;
+    PACMAN_LEFT = JOEY_LEFT;
+    PACMAN_UP = JOEY_UP;
+    PACMAN_DOWN = JOEY_DOWN;
+    PACMAN_RIGHT_PP = JOEY_RIGHT_PP;
+    PACMAN_LEFT_PP = JOEY_LEFT_PP;
+    PACMAN_UP_PP = JOEY_UP_PP;
+    PACMAN_DOWN_PP = JOEY_DOWN_PP;
+  }
+
+  //  ------------  Change Mode  -------------------------
+
+  var myForm = document.getElementById("gameModes");
+  i = 0;
+
+  // loop through each mode listed
+  for (i = 0; i < myForm.mode.length; i++) {
+    if (myForm.mode[i].checked == true) {
+      gameMode = i;
+    }
+  } // end for
+
+  // -------check game mode ---------------------------
+
+  console.log("Mode chosen is " + gameMode);
+
+  if (gameMode == MODE_RANDOM) {
+
+    // retrieve inputs from user
+    boardSize = Number(document.getElementById("boardSize").value);
+    numberOfGhosts = Number(document.getElementById("ghostInput").value);
+    numberOfWalls = Number(document.getElementById("wallsInput").value);
+    numberOfWallsStart = numberOfWalls;
+    console.log("Number of Walls = " + numberOfWalls);
+    bombsCount = Number(document.getElementById("bombsInput").value);
+
+    checkForCheatCode();
+    /// zzz
+    if (validateInputs() == false) {
+      gameStarted = false;
+      return;
     }
 
-    if ((playerId != "") & (name != ""))
-    {
-      alert("You do not need your name to log in, only your id is used.");
+    createRandomWallsArray();
+    createBoard();
+    pelletsLeft = (boardSize * boardSize) - numberOfWalls;
+
+    createRandomGhosts();
+    fillBoardWithPellets();
+    createPowerPellets();
+    document.getElementById("bombsVariable").innerHTML = bombsCount;
+
+    // default goodBombs array to zeros
+    for (i = 0; i < boardSize * boardSize; i++)
+      goodBombs[i] = NO_GOOD_BOMB;
+
+  } else { // --------  Story Mode  ----------------------
+    createStoryLevels();
+    createBoard();
+  }
+
+  // window.alert("Welcome to ultimate Pac-Man! You were born into a starving world. Use arrow keys to move, collect pellets, and save your people!!!");
+  messageBox.innerHTML = "YOU WERE BORN.";
+  console.log("Pellets total for game: " + pelletsLeft);
+  console.log("Number of walls is " + numberOfWalls);
+
+  // zzz
+  // Check to see if we do the story mode alerts here.
+
+  renderGame();
+
+  if (gameMode == MODE_STORY) {
+    showCurrentLevelMessageBoxes();
+  }
+
+  // start Good Bomb timer
+  startGoodBombTimer();
+
+  var myBoard = document.getElementById("board");
+  myBoard.style.visibility = "visible";
+
+}); // end addEventListener
+
+// -----------------------------------------------------------------------
+
+function validateInputs() {
+  if ((boardSize < BOARD_SIZE_MIN) || (boardSize > BOARD_SIZE_MAX)) {
+    messageBox.innerHTML = "Board size must be between " + BOARD_SIZE_MIN + " and " + BOARD_SIZE_MAX;
+    return false;
+  }
+
+  if ((numberOfGhosts < 0) || (numberOfGhosts > (GHOST_PERCENTAGE_MAX * boardSize * boardSize))) {
+    messageBox.innerHTML = "Number of ghosts must be between 0 and " + Math.floor(.25 * boardSize * boardSize);
+    return false;
+  }
+
+  if ((numberOfWalls < 0) || (numberOfWalls > ((boardSize * boardSize) - numberOfGhosts - (SAFE_ZONE_WALL * SAFE_ZONE_WALL)))) {
+    messageBox.innerHTML = "Number of walls must be between 0 and " + ((boardSize * boardSize) - numberOfGhosts - (SAFE_ZONE_WALL * SAFE_ZONE_WALL));
+    return false;
+  }
+
+  if (bombsCount < 0) {
+    messageBox.innerHTML = "Number of Bombs must be greater than or equal to 0.";
+    return false;
+  }
+
+  // ----------  Check ghost % -------------------
+
+
+  GHOST_PERCENT_STANDARD = Number(document.getElementById("percentStandard").value);
+  var total = GHOST_PERCENT_STANDARD;
+
+  GHOST_PERCENT_INVINCIBLE = Number(document.getElementById("percentInvincible").value);
+  total += GHOST_PERCENT_INVINCIBLE;
+
+  GHOST_PERCENT_CHOMPER = Number(document.getElementById("percentChomper").value);
+  total += GHOST_PERCENT_CHOMPER;
+
+  GHOST_PERCENT_TELEPORTER = Number(document.getElementById("percentTeleporter").value);
+  total += GHOST_PERCENT_TELEPORTER;
+
+  GHOST_PERCENT_PEEWEE = Number(document.getElementById("percentPeeWee").value);
+  total += GHOST_PERCENT_PEEWEE;
+
+  GHOST_PERCENT_BOMBER = Number(document.getElementById("percentBomber").value);
+  total += GHOST_PERCENT_BOMBER;
+
+  GHOST_PERCENT_INVISIBLE = Number(document.getElementById("percentInvisible").value);
+  total += GHOST_PERCENT_INVISIBLE;
+
+  GHOST_PERCENT_MEGA = Number(document.getElementById("percentMega").value);
+  total += GHOST_PERCENT_MEGA;
+
+  GHOST_PERCENT_SPLITTER = Number(document.getElementById("percentSplitter").value);
+  total += GHOST_PERCENT_SPLITTER;
+
+  GHOST_PERCENT_HOPPER = Number(document.getElementById("percentHopper").value);
+  total += GHOST_PERCENT_HOPPER;
+
+
+  if (total != 100) {
+    messageBox.innerHTML = "Ghost % 100 must equal 100.";
+    return false;
+  }
+
+}
+// -----------------------------------------------
+
+function checkForCheatCode() {
+  if (boardSize == 5454) {
+    document.getElementById("scoreVariable").innerHTML = "1000000000000000";
+    window.alert("OMG CRAZY MAGIC EPIC INSANE CHEATCODE");
+    window.alert("ONE QUADRILLION POINTS AWARDED");
+    myAudio.src = TEAM_MASAKA;
+    myAudio.play();
+    boardSize = 15;
+  }
+
+} // end function check code
+
+// -----------------------------------------------------------------------
+
+function startGoodBombTimer() {
+  // console.log ("Goodbomb start timer");
+  goodBombTimerID1 = setInterval(myGoodBombTimer, (1000 * SPECIAL_ITEM_DELAY1));
+
+} // end function startGoodBombTimer
+
+// -----------------------------------------------------------------------
+
+function myGoodBombTimer() {
+  // console.log("Bomb Timer 1 called")
+
+  if (gameMode == MODE_RANDOM) {
+    // find a place to drop the good bomob
+    var foundSpot = false;
+
+    while (foundSpot == false) {
+      var targetSpot = Math.floor(Math.random() * boardSize * boardSize);
+
+      if ((walls[targetSpot] == NO_WALL)) {
+        goodBombs[targetSpot] = BOMB;
+        foundSpot = true;
+      } // end if safe spot for a wall
     }
 
-    // clear out old messages
-    messages = new Array;
+    goodBombTimerID2 = setTimeout(cancelGoodBombTimer, (1000 * SPECIAL_ITEM_DELAY2), targetSpot);
+    renderGame();
 
-    // get game status here and display on screen
-    var gameDataRef = db.collection("gameData").doc("gameData");
+  } // end if game is random
 
-    gameDataRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
+  // do nothing in story mode for now
 
-          // set global vars
+} // end function
 
-          bombDropped = doc.data().bombDropped;
-          minBreakLength = doc.data().minBreakLength;
-          morningStartTime = doc.data().morningStartTime;
-          nightEndTime = doc.data().nightEndTime;
-          gameStatus = doc.data().status;
-          volunteerNeeded = doc.data().volunteerNeeded;
-          nextScheduledStart = doc.data().nextScheduledStart;
+// -----------------------------------------------------------------------
 
-          statsActive = doc.data().statsActive;
-          statsCurrentLeader = doc.data().statsCurrentLeader;
-          statsSched = doc.data().statsSched;
-          statsTodaysKills = doc.data().statsTodaysKills;
-          statsTotal = doc.data().statsTotal;
-          statsTotalKills = doc.data().statsTotalKills;
-          statsWaiting = doc.data().statsWaiting;
+function cancelGoodBombTimer(pos) {
+  // console.log("Bomb timer 2 called for space " + pos);
+  goodBombs[pos] = NO_GOOD_BOMB;
+  renderGame();
+}
 
+// -----------------------------------------------------------------------
+// simple reusable code to make board
 
-          console.log("Login clicked, volunteer needed is " + doc.data().volunteerNeeded);
+function createBoard() {
+  // get the board
+  var myBoard = document.getElementById("board");
+  myBoard.innerHTML = "";
 
+  //  set the width and height styles to the number of pixels
+  myBoard.style.width = (boardSize * SQUARE_SIZE) + "px";
+  myBoard.style.height = (boardSize * SQUARE_SIZE) + "px";
 
-          if (volunteerNeeded == true)
-          {
-              console.log("Volunteer Needed is true");
-              postMessage(MESSAGE_TEXT_VOLUNTEER_NEEDED);
-              statsOnlyChange = false;
-              renderGame(status);
-          }
+  // Create the squares
+  for (i = 0; i < boardSize * boardSize; i++) {
+    myBoard.innerHTML = myBoard.innerHTML + '<div class="square"></div>';
+  }
+}
+// -----------------------------------------------------------------------
+// Function to handle game over scenario
 
-          console.log("Game status is " + decodeGameStatus(gameStatus));
+function restartGame() {
+  if (goodBombTimerID1 != -1)
+    clearInterval(goodBombTimerID1);
 
-      }
-    });
+  if (goodBombTimerID2 != -1)
+    clearTimeout(goodBombTimerID2);
 
-  // // create a reference to the document
-  var playerRef = db.collection("players").doc(playerId);
+  if (myPowerPelletTimerVar != -1) {
+    clearTimeout(myPowerPelletTimerVar);
+    myPowerPelletTimerVar = -1;
+    console.log("I garbage collected a power pellet timer in restart game");
+  }
 
-  playerRef.get().then(function(doc)
+  console.log("Game Over.  In restartGame()");
+
+  messageBox.innerHTML = "Welcome to heaven! Player: " + document.getElementById("playerNameInput").value + " ranks " + playerRank + " with a score of " + Number(document.getElementById("scoreVariable").innerHTML) + ".";
+
+  myAudio.src = HEAVEN_WIND_CHIMES;
+  // var heavenWindChimes = new Audio('heaven wind chimes.mp3');
+  myAudio.play();
+
+  gameStarted = false;
+  playerDirection = RIGHT;
+
+  var myBoard = document.getElementById("board");
+  myBoard.style.visibility = "hidden"; // hide board until start button pressed
+  myBoard.innerHTML = ""; // destroy old board
+
+  var i;
+  for (i = 0; i < ghosts.length; i++) // clear out old ghost code
   {
-    if (doc.exists)
-    {
-        console.log("Successful log in");
+    clearInterval(ghosts[i][GHOST_INDEX_TIMER]);
 
-        // set global vars
-        status = doc.data().status;
-        name = doc.data().name;
-        myPicFileName = doc.data().pictureName;
-        owed = doc.data().owed;
-        total = doc.data().total;
-        loggedIn = true;
-        bombAlerted = doc.data().bombAlerted;
-        myPicApproved = doc.data().pictureApproved;
+    if (ghosts[i][GHOST_INDEX_DEATH_TIMER_ID] != -1)
+      clearTimeout(ghosts[i][GHOST_INDEX_DEATH_TIMER_ID]);
+  }
 
-        if ((bombDropped == 1) && (bombAlerted == 0))
-        {
-            console.log("----------------------------- Bomb dropped is " + bombDropped );
-            postMessage(MESSAGE_TEXT_BOMB_DROPPED);
+  for (i = 0; i < bombs.length; i++) {
+    if (bombs[i][BOMB_INDEX_POSITION] != NO_BOMB) {
+      clearTimeout(bombs[i][BOMB_INDEX_TIMER]);
+      console.log("Clear Timeout called in restart game on bomb in position " + i + "Timer number " + bombs[i][BOMB_INDEX_TIMER]);
+    }
+  } // for loop bombs
 
-            // update player record to alerted yes
-            playerRef.update({
-              bombAlerted: 1
-            })
-            .then(function() {
-              console.log("Players bomb alerted success.");
-            })
-            .catch(function(error) {
-              console.error("Error Players bomb alerted success", error);
-            });
+  // delete global arrays
+  ghosts = [];
+  walls = [];
+  pellets = [];
+  powerPellets = [];
+  goodBombs = [];
+  bombs = [];
 
-        }
+  console.log("End restart game");
+} // end restartgame
+// ----------------------------------------
 
-        loginRegion = "";
+function createStoryLevels() {
+  var ghostList;
+  var ghostSpeed;
+  var ghostIntel;
+  var ghostType;
 
-        // ****************** Subscribe *****************************************************************************
-        // create listener on my player record, change in status is important **************  Subscribe *************
-        playerUnsubscribe = playerRef.onSnapshot(function(doc)
-        {
-              // put workaround back in - removed Workaround code with unsubscribe working - Only handle a call if player name is mine, not an old log in
-              if ((doc.exists) && (doc.data().name == name))
-              {
-                  console.log("Listener snapshot called player doc exists name is: " + doc.data().name + " - My name is " + name + "- current status is " + decodePlayerStatus(status) + " - incoming status is " + decodePlayerStatus(doc.data().status));
+  // currentLevel = 7;  // use this line of code to test a specific level - zzz - qqq
 
-                  // update global var in case admin uploaded pic
-                  if (myPicFileName != doc.data().pictureName)
-                  {
-                    console.log("My picture file name changed.");
-                    myPicFileName = doc.data().pictureName;
-                  }
+  switch (currentLevel) {
+    case 0:
 
-                  if ((myPicApproved == 0) && (doc.data().pictureApproved == 1))
-                  {
-                    myPicApproved = 1;
-                    postMessage(MESSAGE_TEXT_PIC_APPROVED);
-                  }
+      myAudio.src = BAJIKO;
+      myAudio.play();
 
-                  if (status == PLAYER_STATUS_GAME_OVER)    // zzzz
-                  {
-                    // set player status on screen to Game Over
-                    // document.getElementById("myStatus").innerHTML = decodePlayerStatus(status);  // yyy
-                  }
-                  else  // show the status coming in from subscribe
-                  {
-                    // document.getElementById("myStatus").innerHTML = decodePlayerStatus(doc.data().status);  // yyy
-                  }
+      walls = [0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1];
 
-                  // update owed if nec
-                  if (owed != doc.data().owed)
-                  {
-                    postMessage(MESSAGE_TEXT_BOUNTY_OWED_CHANGE);
-                    owed = doc.data().owed;
-                    total = doc.data().total;
-                    console.log("Change in owed found - new owed is " + owed );
-                  }
+      powerPellets = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      boardSize = 10;
+      bombsCount = BOMBS_START_COUNT_STORY_MODE;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
 
-                  // Either I was assassinated or I volunteered to go to inactive
-                  if ((status == PLAYER_STATUS_ACTIVE) && (doc.data().status == PLAYER_STATUS_INACTIVE))
-                  {
-                      // assassinated
-                      if (iVolunteered == false)
-                      {
-                        console.log(MESSAGE_TEXT_ASSASSINATED);
-                        postMessage(MESSAGE_TEXT_ASSASSINATED);
-                      }
-                      else  // I did volunteer
-                      {
-                        console.log(MESSAGE_TEXT_VOLUNTEERED);
-                        postMessage(MESSAGE_TEXT_VOLUNTEERED);
-                        iVolunteered = false;   // flip back to false
-                      }
+      ghostSpeed = [1, .9, .8];
+      ghostIntel = [20, 40, 10];
+      ghostType = [GHOST_TYPE_STANDARD, GHOST_TYPE_STANDARD, GHOST_TYPE_STANDARD];
 
-                      status = PLAYER_STATUS_INACTIVE;
-                      // targetId = "";
-                      targetName = "";
-                      nameOfTargetsTarget = "";
-                      targetType = 0;
+      ghostResetSquare = 9;
+      break;
 
-                      // decreasing active players by 1  --------------------------------- yyy - need to test this, double count - Don't need it.
-                      // db.collection("gameData").doc("gameData").update({
-                      //   statsActive: statsActive - 1
-                      // })
-                      // .then(function() {
-                      //   console.log("Decreasing active players by 1 - this could be a double count -------------------------------");
-                      // })
-                      // .catch(function(error) {
-                      //   console.error("Decr stats active failed", error);
-                      // });
+    case 1:
+      myAudio.pause();
 
-                      statsOnlyChange = false;
-                      renderGame(PLAYER_STATUS_INACTIVE);
+      walls = [0, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 3, 0, 3, 0, 3, 3, 3, 0, 3, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 3, 3, 0, 3, 3, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // full array
+      ghostSpeed = [1.8, .2, 1];
+      ghostIntel = [100, 0, 50];
+      ghostType = [GHOST_TYPE_STANDARD, GHOST_TYPE_STANDARD, GHOST_TYPE_STANDARD];
+      ghostResetSquare = 60;
+      bombsCount++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 11;
+      break;
 
-                      return;
-                  }
+    case 2:
 
+      // story mode condition is to kill the chomper
 
-                  // I was moved from waiting or scheduled queue into the game
-                  if (((status == PLAYER_STATUS_WAITING) || (status == PLAYER_STATUS_SCHEDULED)) && (doc.data().status == PLAYER_STATUS_ACTIVE))
-                  {
-                      console.log("Player change subscribe called - going from waiting or scheduled to active. global id is " + playerId);
+      walls = [0, 3, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 3, 0, 0, 3, 3, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 3, 0, 3, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 0, 0, 0];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      ghostSpeed = [1.8, .2, 1, 1];
+      ghostIntel = [100, 30, 70, 50];
+      ghostType = [GHOST_TYPE_STANDARD, GHOST_TYPE_STANDARD, GHOST_TYPE_CHOMPER, GHOST_TYPE_STANDARD];
 
-                      postMessage(MESSAGE_TEXT_ACTIVATED);
-                      status = PLAYER_STATUS_ACTIVE;
+      ghostResetSquare = 120;
+      bombsCount++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 11;
+      break;
 
-                      // create a reference to my link document in the chain first
-                      var myLinkRef = db.collection("chain").doc(playerId);
+    case 3:
 
-                      myLinkRef.get().then(function(doc)
-                      {
-                        if (doc.exists)
-                        {
-                            console.log("Moved to active - Right after myLinkRef.get then doc.exists");
+      walls = [0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 3, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      ghostSpeed = [1.8, .2, 1];
+      ghostIntel = [100, 20, 50];
+      ghostType = [GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER];
 
-                            // ************************************************************************************
-                            // subscribe on the new link that was created ****************************************
-                            // 1 of 2 places in the code - Player updated to active in listener
-                            linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
-                            {
-                                  console.log("Link subscribe called - at the top here ---------- activated within status change from waiting to active");
-                                  // console.log("My link listener called on the way in - within Log In.");
-                                  if ((doc.exists) && (String(doc.id) == String(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
-                                  //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
-                                  {
-                                      console.log("My link listener called - Doc exists - within waiting to queue change  --- this should be setting my new target = " + doc.data().target);
+      bombsCount++;
+      lives++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 13;
+      ghostResetSquare = 92;
 
-                                      targetId = doc.data().target;
+      break;
 
-                                      postMessage(MESSAGE_TEXT_NEW_TARGET); // yyyy
-                                      statsOnlyChange = false;
-                                      renderGame(PLAYER_STATUS_ACTIVE);
+    case 4:
 
-                                  }   // end if doc exists
-                                  else {
-                                    // my link doesn't exist
-                                    console.log("Here is the error --------- doc exists is " + doc.exists + "  doc id is " + doc.id + "  playerId is " + playerId);
-                                  }
-                            }); // end myLinkRef - subscribe
+      walls = [0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0];
+      pellets = [1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      ghostSpeed = [.2];
+      ghostIntel = [20];
+      ghostType = [GHOST_TYPE_INVINCIBLE];
 
-                            // end link subscribe ***********************************************************************
+      ghostResetSquare = 48;
+      bombsCount++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 7;
 
-                            console.log("Player change subscribe called - My Link exists - going from waiting to active.");
+      break;
+
+    case 5:
+
+      walls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      ghostSpeed = [.3, 1, .8, 1.8];
+      ghostIntel = [30, 30, 30, 30];
+      ghostType = [GHOST_TYPE_INVINCIBLE, GHOST_TYPE_STANDARD, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER];
+
+      ghostResetSquare = 167;
+      bombsCount++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 13;
+      lives++;
+
+      break;
 
 
-                        } // end if doc exists on search for my link record
-                        else
-                        {
-                            postMessage(MESSAGE_TEXT_FATAL_ERROR);
-                            console.log("My link doc doesn't exist within player data subscribe:", error);
-                            // my link record doesn't exist
-                        } // end else my link doc doesn't exist
+    case 6:
 
-                      }); // end .get on my link
-                      //  error checking here
+      walls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 0, 0, 0, 0, 3, 0, 3, 3];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0];
+      ghostSpeed = [7, .9, .6, .4, 1.4, .7];
+      ghostIntel = [40, 50, 30, 30, 80, 40];
+      ghostType = [GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER, GHOST_TYPE_CHOMPER];
 
-                      statsOnlyChange = false;
-                      renderGame(status);
-                      return;
-                  } // end if - moved from queue into game
 
-                  // Only update for Registered the first time, ignore afterwards
-                  if ((doc.data().status == PLAYER_STATUS_REGISTERED) && (status != PLAYER_STATUS_REGISTERED))
-                  {
-                      console.log("Player is registered - Subscriber called.");
-                      postMessage(MESSAGE_TEXT_REGISTER_PLAYER);
-                      status = PLAYER_STATUS_REGISTERED;
-                      statsOnlyChange = false;
-                      renderGame(PLAYER_STATUS_REGISTERED);
-                      return;
-                  }
+      ghostResetSquare = 13;
+      bombsCount++;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 14;
 
-                  // waiting to waiting - ignore
-                  if ( (status == PLAYER_STATUS_WAITING) && doc.data().status == PLAYER_STATUS_WAITING)
-                  {
-                      // ignore, no status change zzz - this is one of those where maybe I can filter on the change type
-                      console.log("Maybe zzz this gets called on the initial creation of the listener?");
-                      // console.log("Render game about to be called, owed is " + owed);
-                      statsOnlyChange = false;
-                      renderGame(PLAYER_STATUS_WAITING);
-                      return;
-                  }
+      break;
 
-                  // Just waiting
-                  if (doc.data().status == PLAYER_STATUS_WAITING)
-                  {
-                      console.log(MESSAGE_TEXT_WAITING);
-                      status = PLAYER_STATUS_WAITING;
-                      // console.log("Render game about to be called, owed is " + owed);
-                      statsOnlyChange = false;
-                      renderGame(PLAYER_STATUS_WAITING);
-                      return;
-                  }
+    case 7:
+      myAudio.src = BAJIKO;
+      myAudio.play();
 
-                  // Only show scheduled message if changed
-                  if ((doc.data().status == PLAYER_STATUS_SCHEDULED) && (status != PLAYER_STATUS_SCHEDULED))
-                  {
-                      status = PLAYER_STATUS_SCHEDULED;
-                      statsOnlyChange = false;
-                      renderGame(PLAYER_STATUS_SCHEDULED);
-                      return;
-                  }
 
-                  console.log("Render game about to be called, owed is " + owed);
-                  statsOnlyChange = false;
-                  renderGame(status);
+      walls = [0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 3, 3, 0, 3, 3, 0, 0, 0, 3, 3, 3, 0, 3, 0, 3, 0, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 3, 3, 0, 0, 3, 0, 0, 3, 3, 3, 0, 3, 0, 3, 0, 3, 3, 3, 0, 0, 0, 0, 3, 0, 3, 0, 3, 0, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 3, 3, 0, 3, 3, 3, 3, 3, 0, 3, 0, 3, 3, 3, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 3, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 3, 0, 3, 0, 3, 3, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 3, 3, 0, 3, 3, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 3, 3, 0, 0, 0, 0];
+      ghostList = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      pellets = [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1];
+      powerPellets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 
-              }  // end doc exists - player subscribe
-              else
-              {
-                console.log("Player subscribe called but no doc - Must have been deleted.");
+      ghostSpeed = [.5, .9, 1, 1.4];
+      ghostIntel = [20, 10, 40, 80];
+      ghostType = [GHOST_TYPE_HOPPER, GHOST_TYPE_HOPPER, GHOST_TYPE_HOPPER, GHOST_TYPE_HOPPER];
 
-                if (!doc.exists)
-                  logoffUser();
+      ghostResetSquare = 89;
+      bombsCount += 3;
+      document.getElementById("bombsVariable").innerHTML = bombsCount;
+      boardSize = 15;
 
-              }
 
-        });  // ******** end subscribe on my player record  *********************************************************
+      break;
 
-        // Display success in message area
-        postMessage(MESSAGE_TEXT_LOGIN);
-        postEvent(EVENT_TYPE_PLAYER_LOGIN, MESSAGE_TEXT_LOGIN + playerId);
 
-        // check my status, retrieve my target's name and pic if I am Active
-        if (status == PLAYER_STATUS_ACTIVE)
-        {
+    default:
+      console.log("Error in switch, next board does not exist.");
+      return;
+  } // end switch
 
-            // create a reference to my link document in the chain first
-            myLinkRef = db.collection("chain").doc(playerId);
+  var i;
+  var ghostCount = 0;
+  numberOfWalls = 0;
+  ghosts = [];
 
-            myLinkRef.get().then(function(doc)
-            {
-              if (doc.exists)
-              {
-                  targetId = doc.data().target;
-                  console.log("Doc exists for me - Login - Active status - My target is " + targetId);
-
-                  // ************************* Subscribe ************************************
-                  // create Listener to my link reference ******** Subscribe ************************************
-                  // 2 of 2 places in code for this subscribe.  This one is Log In and Active.
-                  linkUnsubscribe = myLinkRef.onSnapshot(function(doc)
-                  {
-                    if ((doc.exists) && (String(doc.id) == String(playerId)))  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
-                    //if (doc.exists)  // Only process something if doc exists, otherwise, my link was deleted and I don't care, I'm also listening to my status
-                      {
-                          console.log("My link listener called - Doc exists - My id is " + playerId + " Subscriber id is " + doc.id);
-
-                          // check here if I am now in a paused game scenario
-                          if (playerId == doc.data().target)
-                          {
-                              // go into paused mode
-                              console.log("Game Paused - Only 1 player active. My Link Subscriber called and my target is me.");
-                              postMessage(GAME_STATUS_PAUSED_TEXT);
-
-                              // Set game status to "Paused"  ---------------------------------
-                              db.collection("gameData").doc("gameData").update({
-                                status: GAME_STATUS_PAUSED
-                              })
-                              .then(function() {
-                                console.log("Set game status to Paused");
-                              })
-                              .catch(function(error) {
-                                console.error("Set game status to Paused failed", error);
-                              });
-
-                          }
-                          else // continue, not in paused mode
-                          {
-                              console.log("Checking on types of changes xxxxx - old target is " + targetId + "   New target is " + doc.data().target);
-
-                              if (targetId != doc.data().target)
-                                  postMessage(MESSAGE_TEXT_NEW_TARGET);
-
-                              targetId = doc.data().target;
-
-                              statsOnlyChange = false;
-                              renderGame(PLAYER_STATUS_ACTIVE);
-                              return;
-
-                          }   // end else, not a pause scenario
-
-                      }   // end if doc.exists - myLink subscriber
-                      else {
-                        // my link record doesn't exist - must have been deleted
-                        console.log("My link doesn't exist - Likely deleted");
-                      }
-
-                  }); // end myLinkRef onSnapshot
-
-                  statsOnlyChange = false;
-                  renderGame(PLAYER_STATUS_ACTIVE);
-
-              } // end if doc exists on search for my link record
-              else {
-                // my link record doesn't exist although I am active - error scenario
-              }
-
-            }); // end .get on my link
-            //  error checking here
-
-        }   // end if my status was active
-        else {
-          console.log("Status is not active. It is " + decodePlayerStatus(doc.data().status));
-        }
-
-        statsOnlyChange = false;
-        renderGame(status);
-
-    }   // end if doc exists
-    else
-    {
-      postMessage(MESSAGE_TEXT_LOGIN_FAILED + playerId);
-      postError(playerId, MESSAGE_TEXT_LOGIN_FAILED + playerId);
-      statsOnlyChange = false;
-      renderGame(PLAYER_STATUS_LOGGED_OFF);
+  // count number of walls, all arrays same length, could use any
+  for (i = 0; i < walls.length; i++) {
+    if (walls[i] != NO_WALL) {
+      //  walls[i] = WALL;  // this was the hard-coded setting of all walls to 100%  Wall density now configurable
+      numberOfWalls++;
     }
 
-  }).catch(function(error) {
-    console.log("Error getting adminsRef.get() document:", error);
-    });
+    if (pellets[i] == PELLET)
+      pelletsLeft++;
 
+    if (ghostList[i] == GHOST) {
+      // ghost speed will be between 200 and 1700 milliseconds - remove hard coded range later
+      var speed = ghostSpeed[ghostCount]; // Math.floor(Math.random() * ((GHOST_SPEED_RANGE/100)+1));
+      ghostSpeedAddedTogether += speed; // (GHOST_SPEED_RANGE_LOW + (100*speed))/1000  + ghostSpeedAddedTogether;
+
+      ghosts.push([i, 0, ghostIntel[ghostCount], ghostType[ghostCount], -1]);
+
+      console.log("Story Mode ghost created in square: " + i + " Speed is " + speed);
+      //var myVar = setInterval(myGhostTimer, GHOST_SPEED_RANGE_LOW + (100*speed), ghostCount);
+      var myVar = setInterval(myGhostTimer, (1000 * speed), ghostCount);
+
+      ghosts[ghostCount++][GHOST_INDEX_TIMER] = myVar;
+    }
+  }
+
+  document.getElementById("speedVariable").innerHTML = (ghostSpeedAddedTogether / ghostCount).toFixed(2);
+
+  console.log("Number of pellets created StoryMode are: " + pelletsLeft);
+  console.log("Ghosts created StoryMode are: " + ghosts);
+  console.log("Number of walls created StoryMode are: " + numberOfWalls);
+
+} // end function create tutorial walls
+// ----------------------------------
+function getRow(pos) {
+  var row = Math.floor(pos / boardSize);
+  return row;
+}
+// ---------------------------------
+function getColumn(pos) {
+  var column = (pos % boardSize);
+  return column;
+}
+// --------------------------
+
+function getPlayerDirection(pos) {
+  var pcRow = getRow(currentSquare);
+  var pcCol = getColumn(currentSquare);
+  var ghostRow = getRow(pos);
+  var ghostCol = getColumn(pos);
+
+  if ((pcRow < ghostRow) && (pcCol == ghostCol))
+    return UP;
+
+  if ((pcRow > ghostRow) && (pcCol == ghostCol))
+    return DOWN;
+
+  if ((pcRow == ghostRow) && (pcCol < ghostCol))
+    return LEFT;
+
+  if ((pcRow == ghostRow) && (pcCol > ghostCol))
+    return RIGHT;
+
+  if ((pcRow < ghostRow) && (pcCol < ghostCol))
+    return UP_LEFT;
+
+  if ((pcRow < ghostRow) && (pcCol > ghostCol))
+    return UP_RIGHT;
+
+  if ((pcRow > ghostRow) && (pcCol > ghostCol))
+    return DOWN_RIGHT;
+  else
+    return DOWN_LEFT;
+
+} // end function getPlayerDirection
+
+// ----------------------------------
+
+function getNextGhostDirection(ghostIndex) {
+  var intel = ghosts[ghostIndex][GHOST_INDEX_INTEL];
+
+  var random = Math.floor(Math.random() * 100) + 1;
+
+  console.log("Get Next Ghost Direction - Intel is " + intel + ".  Random is " + random);
+
+  if (random <= Math.abs(intel)) {
+    // go towards player
+    var pos = getPlayerDirection(ghosts[ghostIndex][GHOST_INDEX_POSITION]);
+    // console.log ("Going towards/away player.  Ghost in " + ghosts[ghostIndex][GHOST_INDEX_POSITION] + ". Player in " + currentSquare + ". Direction returned is " + pos);
+
+    switch (pos) {
+
+      case LEFT:
+        return (intel > 0) ? LEFT : RIGHT;
+        break;
+
+      case RIGHT:
+        return (intel > 0) ? RIGHT : LEFT;
+        break;
+
+      case UP:
+        return (intel > 0) ? UP : DOWN;
+        break;
+
+      case DOWN:
+        return (intel > 0) ? DOWN : UP;
+        break;
+
+      case UP_LEFT:
+
+        var random2 = Math.floor(Math.random() * 2);
+        if (random2 == 0)
+          return (intel > 0) ? UP : DOWN;
+        else
+          return (intel > 0) ? LEFT : RIGHT;
+
+        break;
+
+      case UP_RIGHT:
+
+        var random2 = Math.floor(Math.random() * 2);
+        if (random2 == 0)
+          return (intel > 0) ? UP : DOWN;
+        else
+          return (intel > 0) ? RIGHT : LEFT;
+
+        break;
+
+      case DOWN_LEFT:
+
+        var random2 = Math.floor(Math.random() * 2);
+        if (random2 == 0)
+          return (intel > 0) ? DOWN : UP;
+        else
+          return (intel > 0) ? LEFT : RIGHT;
+
+        break;
+
+      default: // DOWN RIGHT
+
+        var random2 = Math.floor(Math.random() * 2);
+        if (random2 == 0)
+          return (intel > 0) ? DOWN : UP;
+        else
+          return (intel > 0) ? RIGHT : LEFT;
+
+    } // SWITCH move towards player
+
+  } else if (random <= (intel + (100 - intel) / 4)) {
+    console.log("Didn't move towards player.  Intel is " + intel + " random is " + random);
+    return LEFT;
+  } else if (random <= (intel + 2 * (100 - intel) / 4)) {
+    console.log("Didn't move towards player.  Intel is " + intel + " random is " + random);
+    return RIGHT;
+  } else if (random <= (intel + 3 * (100 - intel) / 4)) {
+    console.log("Didn't move towards player.  Intel is " + intel + " random is " + random);
+    return UP;
+  } else {
+    console.log("Didn't move towards player.  Intel is " + intel + " random is " + random);
+    return DOWN;
+  }
+}
+// ----------------------------------
+// Used in random mode
+function createRandomWallsArray() {
+  var i;
+  walls = []; // reset walls array
+
+  // default all squares to no wall
+  for (i = 0; i < boardSize * boardSize; i++)
+    walls.push(0);
+
+  // for loop for each wall to be built
+  for (i = 0; i < numberOfWalls; i++) {
+    var wallSet = false;
+
+    while (wallSet == false) {
+      var targetSpot = Math.floor(Math.random() * boardSize * boardSize);
+
+      if ((walls[targetSpot] == NO_WALL) && (checkSafetyZone(targetSpot, SAFE_ZONE_WALL) == false)) {
+        walls[targetSpot] = WALL;
+        wallSet = true;
+      } // end if safe spot for a wall
+    } // end while
+  } // end for loop
+} // end function create walls
+
+// -----------------------------------------------------------------------
+function createRandomGhosts() {
+  var i; // for loop
+
+  var totalGhostIntel = 0;
+
+  // create a ghost for each square number in the starting array
+  for (i = 0; i < numberOfGhosts; i++) {
+    var speed;
+
+    // goal is 0 to 16
+    var speed1 = Math.floor(Math.random() * ((GHOST_SPEED_RANGE / 100) + 1));
+
+
+    // speed is as low as -8 or high as 24
+    var speed2 = speed1 - (Number(rgsSlider.value)) / 10;
+
+    if (speed2 < 0)
+      speed = 0;
+    else if (speed2 > (GHOST_SPEED_RANGE + GHOST_SPEED_RANGE_LOW) / 100)
+      speed = GHOST_SPEED_RANGE / 100;
+    else
+      speed = speed2;
+
+    // console.log ("Ghost " + i + " created with speed1 = " + speed1 + ". Speed2 = " + speed2 + ". Final speed is " + speed);
+
+    // ghostSpeedAddedTogether = (GHOST_SPEED_RANGE_LOW + (100*speed))/1000  + ghostSpeedAddedTogether;
+
+    // while loop here - look for valid spot, wall no, safe zone no, ghost yet
+    var validSquareFound = false;
+
+    while (validSquareFound == false) {
+      var squareNum = Math.floor(Math.random() * boardSize * boardSize);
+
+      if ((walls[squareNum] == NO_WALL) && (checkSafetyZone(squareNum, SAFE_ZONE_GHOST) == false))
+        validSquareFound = true;
+    }
+
+    var intel;
+
+    // goal is 0 to 20, representing -100 to +100
+    var intel1 = Math.floor(Math.random() * ((GHOST_INTEL_RANGE / 100) + 1));
+    intel1 = (intel1 - 10) * 10; // we now have -100 to +100
+
+    // apply slider value, intel2 is as low as -200 and high as +200
+    var intel2 = intel1 + (Number(rgiSlider.value));
+
+    if (intel2 < -100)
+      intel = -100;
+    else if (intel2 > +100)
+      intel = +100;
+    else
+      intel = intel2;
+
+    // calculate Average Ghost Brains stat for scoreboard
+    totalGhostIntel += intel;
+
+    console.log("Ghost created with intel = " + intel);
+
+    var randomNum = Math.floor(Math.random() * 100) + 1; // 1 to 100
+
+    if (randomNum <= GHOST_PERCENT_STANDARD) {
+      // STANDARD
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_STANDARD, -1]);
+
+    } else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER)) {
+      // chomper
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_CHOMPER, -1]);
+
+    } else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE)) {
+      // invincible
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_INVINCIBLE, -1]);
+
+    } // peewee
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE)) {
+      // peewee
+      console.log("Peewee ghost created.")
+      intel = intel + 20;
+      if (intel > 100)
+        intel = 100;
+
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_PEEWEE, -1]);
+    }
+    // Bomber
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE + GHOST_PERCENT_BOMBER)) {
+      // BOMBER
+      console.log("Bomber ghost created.")
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_BOMBER, -1]);
+    }
+    // Invisible
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE + GHOST_PERCENT_BOMBER + GHOST_PERCENT_INVISIBLE)) {
+      console.log("Invisible ghost created.")
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_INVISIBLE, -1]);
+    }
+    // Mega
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE + GHOST_PERCENT_BOMBER + GHOST_PERCENT_INVISIBLE + GHOST_PERCENT_MEGA)) {
+      console.log("Mega ghost created.")
+      ghosts.push([squareNum, 0, MEGA_GHOST_INTEL, GHOST_TYPE_MEGA, -1]);
+    }
+    // Splitter
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE + GHOST_PERCENT_BOMBER + GHOST_PERCENT_INVISIBLE + GHOST_PERCENT_MEGA + GHOST_PERCENT_SPLITTER)) {
+      console.log("Splitter ghost created.")
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_SPLITTER, -1]);
+      originalSplitterCount++;
+    }
+    // Hopper
+    else if (randomNum <= (GHOST_PERCENT_STANDARD + GHOST_PERCENT_CHOMPER + GHOST_PERCENT_INVINCIBLE + GHOST_PERCENT_PEEWEE + GHOST_PERCENT_BOMBER + GHOST_PERCENT_INVISIBLE + GHOST_PERCENT_MEGA + GHOST_PERCENT_SPLITTER + GHOST_PERCENT_HOPPER)) {
+      console.log("Hopper ghost created.")
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_HOPPER, -1]);
+    } else { // ----------------------   LAST ONE ---------------------------
+      // teleporter
+      ghosts.push([squareNum, 0, intel, GHOST_TYPE_TELEPORTER, -1]);
+    }
+
+    // console.log ("Ghost created in square: " + squareNum + " Speed is " + speed);
+
+    if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_PEEWEE) {
+      speed = speed - 2; // speed up ghost if Don Peewee
+
+      if (speed < 0)
+        speed = 0;
+
+    } // mega
+    else if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA) {
+      speed = MEGA_GHOST_SPEED;
+    } else if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_SPLITTER) {
+      speed = 8; // 1 second
+    }
+
+    var myVar = setInterval(myGhostTimer, GHOST_SPEED_RANGE_LOW + (100 * speed), i);
+    ghosts[i][GHOST_INDEX_TIMER] = myVar;
+
+    // console.log ("Final Ghost " + i + " created with speed = " + speed);
+
+    ghostSpeedAddedTogether += speed;
+
+  } // end for loop, for each ghost
+
+
+  console.log("Ghosts at end of createRandomGhosts are: " + ghosts);
+
+  // update Speed score on scoreboard
+
+  if ((ghostSpeedAddedTogether / numberOfGhosts) > 14)
+    document.getElementById("speedVariable").innerHTML = "VERY SLOW";
+  else if ((ghostSpeedAddedTogether / numberOfGhosts) > 12)
+    document.getElementById("speedVariable").innerHTML = "SLOW";
+  else if ((ghostSpeedAddedTogether / numberOfGhosts) > 10)
+    document.getElementById("speedVariable").innerHTML = "LITTLE SLOW";
+  else if ((ghostSpeedAddedTogether / numberOfGhosts) > 6)
+    document.getElementById("speedVariable").innerHTML = "NEUTRAL";
+  else if ((ghostSpeedAddedTogether / numberOfGhosts) > 4)
+    document.getElementById("speedVariable").innerHTML = "LITTLE FAST";
+  else if ((ghostSpeedAddedTogether / numberOfGhosts) > 2)
+    document.getElementById("speedVariable").innerHTML = "FAST";
+  else
+    document.getElementById("speedVariable").innerHTML = "VERY FAST";
+
+
+  // update Brains score on scoreboard
+
+  if ((totalGhostIntel / numberOfGhosts) > 60)
+    document.getElementById("brainsVariable").innerHTML = "VERY SMART";
+  else if ((totalGhostIntel / numberOfGhosts) > 35)
+    document.getElementById("brainsVariable").innerHTML = "SMART";
+  else if ((totalGhostIntel / numberOfGhosts) > 10)
+    document.getElementById("brainsVariable").innerHTML = "LITTLE SMART";
+  else if ((totalGhostIntel / numberOfGhosts) > -10)
+    document.getElementById("brainsVariable").innerHTML = "NEUTRAL";
+  else if ((totalGhostIntel / numberOfGhosts) > -35)
+    document.getElementById("brainsVariable").innerHTML = "LITTLE DUMB";
+  else if ((totalGhostIntel / numberOfGhosts) > -60)
+    document.getElementById("brainsVariable").innerHTML = "DUMB";
+  else
+    document.getElementById("brainsVariable").innerHTML = "VERY DUMB";
+
+
+} // end function createRandomGhosts
+
+// ------------------------------------------------------------------------
+// Puts a pellet on all spaces with no walls, overrode in story mode
+function fillBoardWithPellets() {
+  var i;
+  var squares = document.querySelectorAll('.square');
+
+  for (i = 0; i < boardSize * boardSize; i++) {
+    if (walls[i] == NO_WALL) {
+      pellets.push(PELLET);
+    } else {
+      pellets.push(NO_PELLET);
+    }
+  }
+
+} // end create pellet
+// --------------------------------------------------------------------
+
+function createPowerPellets() {
+  var temp1 = document.getElementById("powerPelletsInput").value;
+  //var temp2 = 0;
+
+  var numPP = Number(document.getElementById("powerPelletsInput").value).toFixed(0);
+
+  // document.getElementById("bombsVariable").innerHTML
+
+  // Math.floor(numberOfGhosts / POWER_PELLET_GHOST_RATIO);
+
+  var squareFound = false;
+  var i;
+
+  // default array to zeros
+  for (i = 0; i < boardSize * boardSize; i++)
+    powerPellets[i] = NO_PELLET;
+
+  for (i = 0; i < numPP; i++) {
+    squareFound = false;
+
+    while (squareFound == false) {
+      var ppSquare = Math.floor(Math.random() * ((boardSize * boardSize) - 1)) + 1; // return any square on board except 0.
+
+      if (pellets[ppSquare] == PELLET) {
+        squareFound = true;
+        pellets[ppSquare] = NO_PELLET;
+        powerPellets[ppSquare] = POWER_PELLET;
+        pelletsLeft--;
+      } // end if
+    } // end while
+
+  } // end for`
+
+} // function
+
+// ------------------------------------------------------------------------
+// Function takes in the index to the ghost in the ghost array
+
+function myGhostTimer(i) {
+  // If not a hopper, chomper, peewee, bomber, or teleporter check to see if you are completely boxed in.  If so, return
+  if ((ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_HOPPER) && (ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_CHOMPER) && (ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_PEEWEE) && (ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_BOMBER) && (ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_TELEPORTER) && (ghosts[i][GHOST_INDEX_TYPE] != GHOST_TYPE_MEGA))
+    if ((!checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], UP)) && (!checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], DOWN)) && (!checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], LEFT)) && (!checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], RIGHT))) return;
+
+  if (ghosts[i][GHOST_INDEX_POSITION] == OFF_THE_BOARD) return;
+
+  if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_TELEPORTER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+    // run algorith to check for teleportation -
+    var tempTeleportNum = Math.floor(Math.random() * 100) + 1; // 1 to 100 range
+
+    if (tempTeleportNum <= GHOST_TELEPORT_PERCENTAGE) {
+      var foundSpot = false;
+
+      while (foundSpot == false) {
+        var targetSpot = Math.floor(Math.random() * boardSize * boardSize);
+
+        if (walls[targetSpot] == NO_WALL) {
+          if (gameMode == MODE_RANDOM) {
+            if (targetSpot != currentSquare) {
+              ghosts[i][GHOST_INDEX_POSITION] = targetSpot;
+              foundSpot = true;
+            }
+          } else {
+            ghosts[i][GHOST_INDEX_POSITION] = targetSpot;
+            foundSpot = true;
+          }
+        } // if well check
+      } // end while loop
+
+      renderGame();
+      return;
+    } // teleportation odds found
+  } // if teleporter
+
+  // check if bomber
+
+  if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_BOMBER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+    // check if time to drop a bomb
+    var tempBomberNum = Math.floor(Math.random() * 100) + 1; // 1 to 100 range
+
+    if (tempBomberNum <= GHOST_BOMBER_PERCENTAGE) {
+      dropBomb(ghosts[i][GHOST_INDEX_POSITION]);
+    }
+  }
+
+  // -----  Check Splitter -----------
+
+
+  if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_SPLITTER) {
+    // run algorith to check for split -
+    var tempSplitterNum = Math.floor(Math.random() * 100) + 1; // 1 to 100 range
+
+    if (tempSplitterNum <= SPLITTER_GHOST_PERCENTAGE) {
+      ghosts.push([ghosts[i][GHOST_INDEX_POSITION], 0, ghosts[i][GHOST_INDEX_INTEL], GHOST_TYPE_SPLITTER, -1]);
+      var myTimerVar = setInterval(myGhostTimer, 1000, ghosts.length - 1);
+      ghosts[ghosts.length - 1][GHOST_INDEX_TIMER] = myTimerVar;
+      console.log("Splitter Ghost created.");
+    }
+  }
+
+  //  ----  Start common ghost timer code -----------
+
+  // console.log ("Timer called for ghost in index " + i + " ghost in square " + ghosts[i][GHOST_INDEX_POSITION]);
+  var ghostMove = false;
+  var triedOnce = false;
+  var failedDirection = -1;
+  var MAX_TRIES = 50;
+  var numTries = 0;
+
+  // if you hit a wall, immediately look for another legal move up to MAX_TRIES
+  while ((ghostMove == false) && (numTries < MAX_TRIES)) {
+    var ghostDirection;
+    numTries++;
+
+    if (triedOnce == false)
+      ghostDirection = getNextGhostDirection(i); // mmm
+    else { // loop until you get one of the other 3 directions
+
+      ghostDirection = Math.floor(Math.random() * 4);
+
+      while (ghostDirection == failedDirection)
+        ghostDirection = Math.floor(Math.random() * 4);
+    }
+
+    switch (ghostDirection) {
+
+      case UP:
+
+        if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+          ghostMove = checkForHopperMove(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+        else
+          ghostMove = checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+
+        if (ghostMove == true) // no wall, legal move
+        {
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+            // hop here
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - (2 * boardSize);
+          else
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - boardSize;
+
+          renderGame();
+          return;
+        } else // check for special ghosts
+        {
+          if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_CHOMPER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+            if (ghosts[i][GHOST_INDEX_POSITION] >= boardSize) // bumped into a wall
+            {
+              console.log("Actual chomp up");
+              walls[ghosts[i][GHOST_INDEX_POSITION] - boardSize]--;
+
+              renderGame();
+              return;
+
+            }
+          }
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_PEEWEE) {
+            // console.log ("Peewee tried to go into a wall.  Check whether game border or obstruction wall.");
+
+            if (ghosts[i][GHOST_INDEX_POSITION] > boardSize) // only continue if not crossing top border
+            {
+              if (walls[(ghosts[i][GHOST_INDEX_POSITION] - boardSize)] < WALL) // broken wall, let pee wee through
+              {
+                console.log("Peewee should go through the wall.  Peewee in " + ghosts[i][GHOST_INDEX_POSITION] + " Wall position is " + (ghosts[i][GHOST_INDEX_POSITION] - boardSize) + " The wall there is " + (walls[ghosts[i][GHOST_INDEX_POSITION] - boardSize]));
+                ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - boardSize;
+                console.log("Peewee new position after move is " + ghosts[i][GHOST_INDEX_POSITION]);
+                renderGame();
+                return;
+              } // end if broken wall
+            }
+
+          } // end if ghost = peewee check
+        } // end check for special ghosts
+
+        failedDirection = UP;
+        triedOnce = true;
+        break;
+
+      case DOWN:
+
+        if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+          ghostMove = checkForHopperMove(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+        else
+          ghostMove = checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+
+        if (ghostMove == true) {
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+            // hop here
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + (2 * boardSize);
+          else
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + boardSize;
+
+          renderGame();
+          return;
+        } else // check for special ghosts
+        {
+          if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_CHOMPER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+            if (ghosts[i][GHOST_INDEX_POSITION] <= (boardSize * boardSize) - (boardSize + 1)) // bumped into a wall
+            {
+              console.log("Actual chomp down");
+              walls[ghosts[i][GHOST_INDEX_POSITION] + boardSize]--;
+
+              renderGame();
+              return;
+            }
+          }
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_PEEWEE) {
+            //if (ghosts[i][GHOST_INDEX_POSITION] <= (boardSize * boardSize)-(boardSize + 1))  // bumped into a border wall
+            //    walls[ghosts[i][GHOST_INDEX_POSITION]+boardSize]--;
+
+            // console.log ("Peewee tried to go into a wall.");
+
+            // only continue if not going through bottom game border.
+            if (ghosts[i][GHOST_INDEX_POSITION] < (boardSize * boardSize) - (boardSize)) {
+              if (walls[(ghosts[i][GHOST_INDEX_POSITION] + boardSize)] < WALL) // broken wall, let pee wee through
+              {
+                console.log("Peewee should go through the wall.  Peewee in " + ghosts[i][GHOST_INDEX_POSITION] + " Wall position is " + (ghosts[i][GHOST_INDEX_POSITION] + boardSize) + " The wall there is " + (walls[ghosts[i][GHOST_INDEX_POSITION] + boardSize]));
+                ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + boardSize;
+                console.log("Peewee new position after move is " + ghosts[i][GHOST_INDEX_POSITION]);
+                renderGame();
+                return;
+              } // end if broken wall
+            }
+
+          } // end if ghost = peewee check
+        }
+        failedDirection = DOWN;
+        triedOnce = true;
+        break;
+
+      case LEFT:
+
+        if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+          ghostMove = checkForHopperMove(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+        else
+          ghostMove = checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+
+        if (ghostMove == true) {
+
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - 2;
+          else
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - 1;
+
+          renderGame();
+          return;
+        } else // check for special ghosts
+        {
+          if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_CHOMPER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+            if (ghosts[i][GHOST_INDEX_POSITION] % boardSize > 0) // bumped into a wall
+            {
+              console.log("Actual chomp left");
+              walls[ghosts[i][GHOST_INDEX_POSITION] - 1]--;
+
+              renderGame();
+              return;
+            }
+
+          }
+
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_PEEWEE) {
+            // console.log ("Peewee tried to go into a wall.");
+
+            // only continue if not going through left game
+
+            if (ghosts[i][GHOST_INDEX_POSITION] % boardSize > 0) {
+
+              if (walls[(ghosts[i][GHOST_INDEX_POSITION] - 1)] < WALL) // broken wall, let pee wee through
+              {
+                console.log("Peewee should go through the wall.  Peewee in " + ghosts[i][GHOST_INDEX_POSITION] + " Wall position is " + (ghosts[i][GHOST_INDEX_POSITION] - 1) + " The wall there is " + (walls[ghosts[i][GHOST_INDEX_POSITION] - 1]));
+
+                ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] - 1;
+                console.log("Peewee new position after move is " + ghosts[i][GHOST_INDEX_POSITION]);
+                renderGame();
+                return;
+              } // end if broken wall
+            }
+
+          } // end if ghost = peewee check
+
+        }
+
+        failedDirection = LEFT;
+        triedOnce = true;
+        break;
+
+      case RIGHT:
+
+        if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+          ghostMove = checkForHopperMove(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+        else
+          ghostMove = checkForNoWall(ghosts[i][GHOST_INDEX_POSITION], ghostDirection);
+
+        if (ghostMove == true) {
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_HOPPER)
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + 2;
+          else
+            ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + 1;
+
+          renderGame();
+          return;
+        } else // check for special ghosts
+        {
+          if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_CHOMPER) || (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_MEGA)) {
+            console.log("Got into this weird code");
+            if ((ghosts[i][GHOST_INDEX_POSITION] % boardSize) < (boardSize - 1)) // bumped into a wall or edge
+            {
+              console.log("Actual chomp right");
+              walls[ghosts[i][GHOST_INDEX_POSITION] + 1]--;
+              renderGame();
+              return;
+
+            }
+          }
+
+          if (ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_PEEWEE) {
+            // console.log ("Peewee tried to go into a wall.");
+
+            // only continue if not going through right wall
+
+            if ((ghosts[i][GHOST_INDEX_POSITION] % boardSize) < (boardSize - 1)) {
+
+              if (walls[(ghosts[i][GHOST_INDEX_POSITION] + 1)] < WALL) // broken wall, let pee wee through
+              {
+                console.log("Peewee should go through the wall.  Peewee in " + ghosts[i][GHOST_INDEX_POSITION] + " Wall position is " + (ghosts[i][GHOST_INDEX_POSITION] + boardSize) + " The wall there is " + (walls[ghosts[i][GHOST_INDEX_POSITION] + boardSize]));
+
+                ghosts[i][GHOST_INDEX_POSITION] = ghosts[i][GHOST_INDEX_POSITION] + 1;
+                console.log("Peewee new position after move is " + ghosts[i][GHOST_INDEX_POSITION]);
+                renderGame();
+                return;
+              } // end if broken wall
+
+            }
+
+          } // end if ghost = peewee check
+
+        }
+        failedDirection = RIGHT;
+        triedOnce = true;
+        break;
+    } // end switch
+
+  } // end while loop
+
+} // end timer function
+
+// -------------------------------------------------------------------------
+
+function myGhostResetTimer(pos) {
+  console.log("Reset timer called for ghost in pos = " + pos + ", full ghosts = " + ghosts);
+
+  // set the position of the killed ghost back to the resetSquare position
+  ghosts[pos][GHOST_INDEX_POSITION] = getGhostResetSquare();
+  renderGame();
+
+} // end reset timer
+
+// -------------------------------------------------------------------------
+
+function getGhostResetSquare() {
+  console.log("For crying out loud!");
+
+  if (gameMode == MODE_STORY) {
+    console.log("You wont believe it, its story mode");
+    return ghostResetSquare;
+  } else { // random mode
+
+    console.log("Did I even get here");
+    var i = 1; // subtract 1 from boardSize squared to get the last square, bottom right
+    var found = false;
+
+    while (found == false) {
+      if (walls[(boardSize * boardSize) - i] == NO_WALL) {
+        console.log("Checking for wall");
+        // console.log ("In find ghost reset square, found square is " + ((boardSize*boardSize)-i));
+        return ((boardSize * boardSize) - i);
+      } else
+        i++;
+    }
+  }
 
 }
 
+//  keystroke interceptor ---------------------------------------------------
 
-// ---------------------------------------------------------
+document.onkeydown = checkKey;
 
-function logOffButtonClick()
-{
-  logoffUser();
+function checkKey(evt) {
+  // this line of code was needed due to old browsers, possibly firefox, Nathan had an issue
+  evt = evt || window.event;
+
+  var squares = document.querySelectorAll('.square');
+  //console.log ("Keycode pressed from event: " + evt.keyCode);
+
+  var key = evt.keyCode;
+  switch (key) {
+    case SPACE_BAR_KEY:
+      console.log("Space Bar pressed");
+
+      if (currentSquare == OFF_THE_BOARD)
+        return;
+
+      if (bombsCount > 0) {
+        bombsCount--;
+        document.getElementById("bombsVariable").innerHTML = document.getElementById("bombsVariable").innerHTML - 1;
+        dropBomb(currentSquare);
+      }
+
+      return; // space bar glistch
+
+    case ARROW_LEFT:
+
+      console.log("Left key is pressed");
+      if (checkForNoWall(currentSquare, LEFT) == false) return;
+
+      currentSquare = currentSquare - 1;
+      playerDirection = LEFT;
+      renderGame();
+      break;
+
+    case ARROW_UP:
+
+      console.log("Up key is pressed");
+      if (checkForNoWall(currentSquare, UP) == false) return;
+      currentSquare = currentSquare - boardSize;
+      playerDirection = UP;
+      renderGame();
+      break;
+
+    case ARROW_RIGHT:
+
+      console.log("Right key is pressed");
+      if (checkForNoWall(currentSquare, RIGHT) == false) return;
+      currentSquare = currentSquare + 1;
+      playerDirection = RIGHT;
+      renderGame();
+      break;
+
+    case ARROW_DOWN:
+
+      console.log("Down key is pressed");
+      if (checkForNoWall(currentSquare, DOWN) == false) return;
+      currentSquare += boardSize;
+      playerDirection = DOWN;
+      renderGame();
+      break;
+
+    default:
+
+      // do nothing
+  } // end switch
+
+} // end key press function
+
+// ------------------------
+// Placeholder
+
+function dropBomb(pos) {
+  console.log("Dropped Bomb!  You bedda wun! Position: " + pos);
+  messageBox.innerHTML = "BOMB DROPPED!"
+  var myVar = setTimeout(myBombTimer, BOMB_DELAY * 1000, bombs.length);
+  bombs.push([pos, myVar]);
+  console.log("Bombs array " + bombs);
 }
+// --------------------------------------------------------------------------
+
+function myBombTimer(bombIndex) {
+  var i;
+
+  messageBox.innerHTML = "BOMB EXPLODED!"
+  var pos = bombs[bombIndex][BOMB_INDEX_POSITION];
+
+  // check exact cell first
+  if (pos == currentSquare) {
+    // player dies
+    killPacman();
+  }
+
+  // check up only if not already in the top row
+  if (pos >= boardSize) {
+    // check if person in
+    if ((pos - boardSize) == currentSquare)
+      killPacman();
+
+    if (walls[pos - boardSize] != NO_WALL) {
+      console.log("Blowing up an Up wall");
+      walls[pos - boardSize] = NO_WALL;
+      numberOfWalls--;
+    }
+  }
+
+  // down
+  if (pos < (boardSize * boardSize) - (boardSize)) {
+    // check if person in
+    if ((pos + boardSize) == currentSquare)
+      killPacman();
+
+    if (walls[pos + boardSize] != NO_WALL) {
+      console.log("Blowing up a Down wall");
+      walls[pos + boardSize] = NO_WALL;
+      numberOfWalls--;
+    }
+  }
+
+  // left
+  if (pos % boardSize > 0) {
+    // check if person in
+    if ((pos - 1) == currentSquare)
+      killPacman();
+
+    if (walls[pos - 1] != NO_WALL) {
+      console.log("Blowing up an Left wall");
+      walls[pos - 1] = NO_WALL;
+      numberOfWalls--;
+    }
+  }
+
+  // right
+  if ((pos % boardSize) < (boardSize - 1)) {
+    // check if person in
+    if ((pos + 1) == currentSquare)
+      killPacman();
+
+    if (walls[pos + 1] != NO_WALL) {
+      console.log("Blowing up an Right wall");
+      walls[pos + 1] = NO_WALL;
+      numberOfWalls--;
+    }
+  }
+
+  if (lives != 0) {
+    bombs[bombIndex][BOMB_INDEX_POSITION] = NO_BOMB;
+    renderGame();
+  }
+
+} // my bomb timer
 
 
-// ---------------------------------------------------------
+// ----------------------------------------------------------------------
+// True / false returned - Check if the position is in the safety zone
+function checkSafetyZone(pos, size) {
+  var i; // for loop
+  var j;
 
-function rulesButtonClick()
+  for (i = 0; i < size; i++) {
+    for (j = 0; j < size; j++) {
+      if (((i * boardSize) + j) == pos) {
+        //console.log("Position OK in safety zone: Pos = " + pos + ". Size = " + size);
+        return true;
+      }
+    } // end inner for loop
+
+  } // end outer for loop
+
+  // console.log("Position not in safety zone: Pos = " + pos + ". Size = " + size);
+  return false;
+
+} // end function check ghost safety zone
+
+// ----------------------------------------------
+
+
+
+function checkForHopperMove(position, direction) {
+
+  switch (direction) {
+    case UP:
+
+      // first check for top border of game, then check the target square for an obstruction wall
+      if (position < (2 * boardSize)) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position - (2 * boardSize)] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case DOWN:
+
+      // first check for bottom border of game, then check the target square for an obstruction wall
+      if (position > (boardSize * boardSize) - (2 * boardSize + 1)) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position + (2 * boardSize)] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case LEFT:
+
+      // first check for left border of game, then check the target square for an obstruction wall
+      if (position % boardSize < 2) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position - 2] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case RIGHT:
+
+      // first check for right border of game, then check the target square for an obstruction wall
+      if ((position % boardSize) > (boardSize - 3)) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position + 2] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    default:
+
+  } // end switch
+
+} // end function check for hopper move
+
+
+// ----------------------------------------------
+// Pass in the square position and the direction and the function returns true if there is no wall, false if there is a wall
+
+function checkForNoWall(position, direction) {
+
+  switch (direction) {
+    case UP:
+
+      // first check for top border of game, then check the target square for an obstruction wall
+      if (position < boardSize) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position - boardSize] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case DOWN:
+
+      // first check for bottom border of game, then check the target square for an obstruction wall
+      if (position > (boardSize * boardSize) - (boardSize + 1)) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position + boardSize] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case LEFT:
+
+      // first check for left border of game, then check the target square for an obstruction wall
+      if (position % boardSize == 0) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position - 1] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    case RIGHT:
+
+      // first check for left border of game, then check the target square for an obstruction wall
+      if ((position % boardSize) == (boardSize - 1)) return false;
+      else {
+        // legal move, now check the square for an obstruction wall
+        if (walls[position + 1] == NO_WALL)
+          return true;
+        else
+          return false;
+      }
+      break;
+
+    default:
+
+  } // end switch
+
+} // end function check for wall
+
+
+// --------------------------------------------------------------------------
+// Returns NO_GHOST (-1) if there is no ghost, otherwise, return the ghost type (constants 0 and above)
+
+function checkGhost(position) {
+  var i = 0;
+
+  // check for ghosts in specific order
+  var standardGhostFound = false;
+  var chomperFound = false;
+  var bomberFound = false;
+  var teleporterFound = false;
+  var peeweeFound = false;
+  var invisibleGhostFound = false;
+  var megaFound = false;
+  var splitterFound = false;
+  var hopperFound = false;
+
+
+  // you always need to go through the entire array of ghosts to check for special ones.
+  for (i = 0; i < ghosts.length; i++) {
+    if (ghosts[i][GHOST_INDEX_POSITION] == position) {
+      switch (ghosts[i][GHOST_INDEX_TYPE]) {
+        case GHOST_TYPE_INVINCIBLE: // return immediately
+          return GHOST_TYPE_INVINCIBLE;
+          break;
+
+        case GHOST_TYPE_MEGA:
+          megaFound = true;
+          break;
+
+        case GHOST_TYPE_CHOMPER:
+          chomperFound = true;
+          break;
+
+        case GHOST_TYPE_BOMBER:
+          bomberFound = true;
+          break;
+
+        case GHOST_TYPE_PEEWEE:
+          peeweeFound = true;
+          break;
+
+        case GHOST_TYPE_TELEPORTER:
+          teleporterFound = true;;
+          break;
+
+        case GHOST_TYPE_HOPPER:
+          hopperFound = true;
+          break;
+
+        case GHOST_TYPE_SPLITTER:
+          splitterFound = true;
+          break;
+
+        case GHOST_TYPE_INVISIBLE:
+          invisibleGhostFound = true;
+          break;
+
+        case GHOST_TYPE_STANDARD:
+          standardGhostFound = true;
+          break;
+
+        default:
+
+      } // end switch
+
+    } // end if ghost
+  } // end outer for
+
+  if (megaFound == true) return GHOST_TYPE_MEGA;
+  if (bomberFound == true) return GHOST_TYPE_BOMBER;
+  if (chomperFound == true) return GHOST_TYPE_CHOMPER;
+  if (hopperFound == true) return GHOST_TYPE_HOPPER;
+  if (teleporterFound == true) return GHOST_TYPE_TELEPORTER;
+  if (peeweeFound == true) return GHOST_TYPE_PEEWEE;
+  if (splitterFound == true) return GHOST_TYPE_SPLITTER;
+  if (standardGhostFound == true) return GHOST_TYPE_STANDARD;
+  if (invisibleGhostFound == true) return GHOST_TYPE_INVISIBLE;
+
+} // end function checkGhost
+
+// --------------------------------------------------------------------------
+// Returns true if there is a bomb in the position passed in
+
+function checkBomb(pos) {
+  var i = 0;
+  var found = false;
+
+  while ((i < bombs.length) && (found == false)) {
+    if (bombs[i][BOMB_INDEX_POSITION] == pos) {
+      found = true;
+    } else {
+      i++;
+    }
+  } // end while
+
+  return found;
+
+} // end function check bomb
+
+// -----------------------------------------------------------------------
+
+function restartRound() // player finished board, continue to next level
 {
-  postMessage(MESSAGE_TEXT_SEE_RULES_BELOW);
-  showRules = true;
-  statsOnlyChange = false;
-  renderGame(status);
+  var i;
+  console.log("Restart Round, now at Level " + currentLevel);
+
+
+  if (goodBombTimerID1 != -1) {
+    // doesn't appear I need to reset to -1 here, but check later for possible bug
+    clearInterval(goodBombTimerID1);
+    console.log("I garbage collected a good bomber timer1 timer");
+  }
+
+  if (goodBombTimerID2 != -1) {
+    // doesn't appear I need to reset to -1 here, but check later for possible bug
+    clearTimeout(goodBombTimerID2);
+    console.log("I garbage collected good bomb timer 2 timer");
+  }
+
+  if (doorTimerVar != -1) {
+    clearTimeout(doorTimerVar);
+    doorTimerVar = -1;
+    console.log("I garbage collected an exit door timer");
+  }
+
+  if (chomperKilledTimerVar != -1) {
+    clearTimeout(doorTimerVar);
+    chomperKilledTimerVar = -1;
+    console.log("I garbage collected a chomper killed timer");
+  }
+
+  if (myPowerPelletTimerVar != -1) {
+    clearTimeout(myPowerPelletTimerVar);
+    myPowerPelletTimerVar = -1;
+    console.log("I garbage collected a power pellet timer");
+  }
+
+  for (i = 0; i < ghosts.length; i++) // clear out old ghost code
+  {
+    if (ghosts[i][GHOST_INDEX_DEATH_TIMER_ID] != -1) {
+      console.log("Cleaned out a zombie ghost");
+      clearTimeout(ghosts[i][GHOST_INDEX_DEATH_TIMER_ID]);
+      ghosts[i][GHOST_INDEX_DEATH_TIMER_ID] = -1;
+    }
+  }
+
+  for (i = 0; i < bombs.length; i++) {
+    if (bombs[i][BOMB_INDEX_POSITION] != NO_BOMB) {
+      bombs[i][BOMB_INDEX_POSITION] = NO_BOMB;
+      clearTimeout(bombs[i][BOMB_INDEX_TIMER]);
+      console.log("Clear Timeout in restart round called on bomb in position " + i + "Timer number " + bombs[i][BOMB_INDEX_TIMER]);
+    }
+  }
+
+  // for (i=0; i<ghosts.length; i++)
+  // {
+  //   if (ghosts[i][GHOST_INDEX_POSITION] == OFF_THE_BOARD)
+  //   {
+  //         clearTimeout(ghosts[i][GHOST_INDEX_TIMER]);
+  //         console.log ("Clear Timeout in restart round called on ghost");
+  //   }
+  // }
+
+  // increase level
+  currentLevel++;
+
+  document.getElementById("levelVariable").innerHTML = currentLevel;
+  currentSquare = OFF_THE_BOARD; // don't display player except through timer
+  powerPelletStatus = POWER_PELLET_OFF;
+
+  console.log("Restart Round, now at Level " + currentLevel);
+
+  if (gameMode == MODE_RANDOM) {
+    bombsCount++; // get an extra bomb each round
+    numberOfWalls = Number(document.getElementById("wallsInput").value);
+    numberOfWallsStart = numberOfWalls;
+
+    createRandomWallsArray();
+
+    pellets = [];
+    powerPellets = [];
+    fillBoardWithPellets();
+    pelletsLeft = (boardSize * boardSize) - numberOfWalls;
+    createPowerPellets();
+
+    // default goodBombs array to zeros
+    for (i = 0; i < boardSize * boardSize; i++)
+      goodBombs[i] = NO_GOOD_BOMB;
+
+    // restart ghosts that were off the board
+
+    for (i = 0; i < ghosts.length; i++) {
+      var checkZone;
+      var squareNum = ghosts[i][GHOST_INDEX_POSITION];
+
+      if (squareNum == OFF_THE_BOARD)
+        checkZone = true;
+      else checkZone = checkSafetyZone(squareNum, SAFE_ZONE_GHOST);
+
+      while (checkZone == true) {
+        //console.log ("Had to move a ghost");
+        squareNum = Math.floor(Math.random() * boardSize * boardSize);
+        checkZone = checkSafetyZone(squareNum, SAFE_ZONE_GHOST);
+      }
+
+      ghosts[i][GHOST_INDEX_POSITION] = squareNum;
+
+    } // end for loop
+
+    // check and eliminate any extra splittersFound
+    var splittersFound = 0;
+    for (i = 0; i < ghosts.length; i++) {
+
+      if ((ghosts[i][GHOST_INDEX_TYPE] == GHOST_TYPE_SPLITTER) && (ghosts[i][GHOST_INDEX_POSITION] != OFF_THE_BOARD))
+        splittersFound++;
+
+      if (splittersFound > originalSplitterCount)
+        ghosts[i][GHOST_INDEX_POSITION] = OFF_THE_BOARD;
+
+    }
+
+
+  } else // Story Mode
+  {
+    // Check if completed mission
+    if (currentLevel == NUMBER_OF_LEVELS) {
+      console.log("You Won - reached number of levels");
+      messageBox.innerHTML = "YOU WON!";
+      restartGame();
+      return;
+      // return;
+    }
+    ghostSpeedAddedTogether = 0;
+    var i;
+    for (i = 0; i < ghosts.length; i++) // clear out old ghost code
+    {
+      clearInterval(ghosts[i][GHOST_INDEX_TIMER]);
+    }
+
+    ghosts = [];
+    walls = [];
+    pellets = [];
+    powerPellets = [];
+    goodBombs = [];
+
+    createStoryLevels();
+    createBoard();
+
+  } // end else
+
+  // start Good Bomb timer
+  startGoodBombTimer();
+
+  resetPlayer();
+
+} // end restart round
+
+// --------------------------------------------------------------------------
+
+function resetPlayer() {
+  console.log("Reset Player called");
+  setTimeout(myResetTimer, RESET_PLAYER_DELAY * 1000);
+
+} // end function resetPlayer();
+
+// --------------------------------------------------------------------------
+
+function myResetTimer() {
+  console.log("Reset timer called, ghosts = " + ghosts);
+
+  var i; // for loop
+  var splittersFound = 0;
+
+  // create a function - clearGhosts
+  for (i = 0; i < ghosts.length; i++) {
+    var checkZone;
+    var squareNum = ghosts[i][GHOST_INDEX_POSITION];
+    var ghostMoved = false;
+
+    if (squareNum == OFF_THE_BOARD) // off board ghost is ok, keep moving
+      checkZone = false; // zzz qqq flipping this for possible bug, was true before
+    else checkZone = checkSafetyZone(squareNum, SAFE_ZONE_GHOST);
+
+    while (checkZone == true) {
+      // console.log ("Had to move a ghost ***");
+      ghostMoved = true;
+      squareNum = Math.floor(Math.random() * boardSize * boardSize);
+      checkZone = checkSafetyZone(squareNum, SAFE_ZONE_GHOST);
+    }
+
+    if (ghostMoved == true) // reset ghost to new safe space
+      ghosts[i][GHOST_INDEX_POSITION] = squareNum;
+
+  } // end for loop
+
+  playerDirection = RIGHT;
+  currentSquare = 0; // reset player
+
+  messageBox.innerHTML = "YOU WERE REBORN.";
+
+  renderGame();
+
+} // end reset timer
+// -------------------------------------------------------------------------
+
+function myPPTimer() {
+  powerPelletStatus = POWER_PELLET_OFF;
 }
 
 // ----------------------------------------------------------------------
 
-function logoffUser()
-{
+function showCurrentLevelMessageBoxes() {
+  switch (currentLevel) {
+    case 0:
+      window.alert("We start this story with a young soldier assigned to his first mission.");
+      window.alert("Bob Dugan: Soldier, we have some hostiles attacking a the south gate. Prove yourself by salvaging the pellets. Here are some bombs, use them wisely with the spacebar. Now go!.");
+      window.alert("Yes sir!.");
 
-    console.log("Logoff called, my id is " + playerId);
-
-    postMessage(MESSAGE_TEXT_LOGOFF);
-
-    //  detach from listeners
-    playerUnsubscribe();
-
-    // console.log("Game Data Unsubscribe called.");
-    // gameDataUnsubscribe();
-    // gameDataUnsubscribe = "";
-
-    if (status == PLAYER_STATUS_ACTIVE)
-    {
-        console.log("Link unsubscribe called because I was active");
-        // detach from chain listener
-        linkUnsubscribe();
-    }
-
-    // reset global vars - yyy - check newer ones -
-    playerId = "";
-    name = "";
-    status = PLAYER_STATUS_LOGGED_OFF;  // player status
-    owed = 0;
-    total = 0;
-    targetName = "";
-    targetId = "";
-    targetType = 0;
-    nameOfTargetsTarget = "";
-    myLinkRef = ""; // reference to my link in the chain
-    myPicFileName = "";
-    loggedIn = false;
-    iVolunteered = false;
-    myPicApproved = 0;
-    myRegistrationType = "";
-    showMyPic = false;
-    myURL = "";
-    bombAlerted = 0;  // specific to the player
-    showRules = false;
-    progressCounter = 0;
-    // messages = new Array;
-
-    statsOnlyChange = false;
-    renderGame(PLAYER_STATUS_LOGGED_OFF);
-
-    console.log("Logoff Called and completed.");
-
-}
-
-// end function logoff User - reused by button and also scenario where admin blanks game while user logged in
-
-// Start confirmAssassination function ----------------------
-// moved code out of button listener to allow default action when enter pressed
-
-function confirmAssassinationButtonClick()
-{
-    if (gameStatus == GAME_STATUS_OVERNIGHT)
-    {
-      alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
-      return;
-    }
-
-    if (gameStatus == GAME_STATUS_MAINTENANCE)
-    {
-      alert(GAME_STATUS_MAINTENANCE_TEXT);
-      return;
-    }
-
-    confirmAssassination();
-}
-
-// ----------------------------------------------------------------------------------
-
-function confirmAssassination()
-{
-    // temp helper vars to make code more readable
-    // var myTargetsID;
-    var myTargetsTargetID;
-    var myTargetsTargetsName;
-
-    // only get data I need
-    console.log("Confirm assassination called.");
-
-    nameOfTargetsTarget = document.getElementById("targetNameBox").value;
-
-    if (nameOfTargetsTarget == "")
-    {
-      console.log("Blank name entered in target's target box.");
-      postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA + "  Target's target name invalid.");
-      return;
-    }
-
-    // create a reference to my link document in the chain first
-    var myLinkRef = db.collection("chain").doc(playerId);
-
-    myLinkRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-          console.log("Doc exists for me");
-          targetId = doc.data().target;
-
-          // create a reference to my target's link
-          var myTargetsLinkRef = db.collection("chain").doc(doc.data().target);
-          myTargetsLinkRef.get().then(function(doc)
-          {
-            if (doc.exists) // my targets link doc exists
-            {
-                // save my target's target id
-                myTargetsTargetID = doc.data().target;
-
-               // create a reference to the player db for my target's target
-                var myTargetsTargetPlayerRef = db.collection("players").doc(myTargetsTargetID);
-
-                myTargetsTargetPlayerRef.get().then(function(doc)
-                {
-                  if (doc.exists) // my target's target player doc exists
-                  {
-                      console.log("Checking names for assassination, " + nameOfTargetsTarget + " and " + doc.data().name);
-
-                      // convert both names to lowercase
-                      if (nameOfTargetsTarget.toLowerCase() == (doc.data().name).toLowerCase())
-                      {
-                        console.log("Names match - good assassination  --------------------------");
-                        postMessage(MESSAGE_TEXT_CONFIRM_BOUNTY);
-                        postEvent(EVENT_TYPE_PLAYER_CONFIRM_KILL, playerId + " killed " + targetId);
-
-                        // Increase total kills by 1 and todays kills by 1
-                        gameDataRef.get().then(function(doc)
-                        {
-                            if (doc.exists)
-                            {
-                                console.log("Game Data exists, increasing total kills and todays kills by 1.  Check for new current leader.");
-                                // set initial message and data
-
-                                statsTotal = doc.data().statsTotal;
-                                statsWaiting = doc.data().statsWaiting;
-                                statsSched = doc.data().statsSched;
-                                statsActive = doc.data().statsActive;
-                                statsTotalKills = doc.data().statsTotalKills;
-                                statsTodaysKills = doc.data().statsTodaysKills;
-                                statsCurrentLeader = doc.data().statsCurrentLeader;
-
-                                if (total > statsCurrentLeader)
-                                {
-                                  statsCurrentLeader = total;
-                                }
-
-                                // increasing total players by 1  ---------------------------------
-                                db.collection("gameData").doc("gameData").update({
-                                  statsTotalKills: statsTotalKills + 1,
-                                  statsCurrentLeader: statsCurrentLeader,
-                                  statsTodaysKills: statsTodaysKills + 1
-                                })
-                                .then(function() {
-                                  console.log("Increased total kills and todays kills by 1");
-                                })
-                                .catch(function(error) {
-                                  console.error("Increased total kills and todays kills failed", error);
-                                });
-                            } // error checking,
-                        });
-
-                        // create a reference to the player document to increment owed
-                        var playerRef = db.collection("players").doc(playerId);
-
-                        if (targetType == PLAYER_TYPE_CELEBRITY)
-                        {
-                          owed++;
-                          console.log("Target was a celebrity ----------------------------");
-                          targetType = PLAYER_TYPE_REGULAR;
-                        }
-
-                        owed++;
-
-                        total++;
-
-                        // increase owed and total in db
-                        playerRef.get().then(function(doc)
-                        {
-                            if (doc.exists)
-                            {
-                                // add 1 to owed, add 1 to total
-                                db.collection("players").doc(playerId).update({
-                                  owed: owed,
-                                  total: total
-                                })
-                                .then(function() {
-                                  console.log("Players owed and total update success within assassination.");
-                                })
-                                .catch(function(error) {
-                                  console.error("Error player owed and total update to db within assassination.", error);
-                                });
-                            } // end if doc exists
-                            else {
-                              console.log("Player doc doesn't exist in confirm assassination bump owed")
-                            }
-                        });
-
-                        // update my target - Check waiting queue First
-                        // get the waiting queue
-                        var queueRef = db.collection("queues").doc("waiting");
-                        queueRef.get().then(function(doc)
-                        {
-                          if (doc.exists) // waiting queue doc exists
-                          {
-                              console.log("Waiting queue Doc exists");
-
-                              if (doc.data().players != 0)  // bring in waiting players if queue not empty
-                              {
-                                  var i;
-                                  var tempArray = new Array;
-                                  tempArray = doc.data().players;   // create local array to shuffle players
-
-                                  for (i=0;i<tempArray.length*50;i++)
-                                  {
-                                    var index1 = Math.floor((Math.random() * doc.data().players.length));
-                                    var index2 = Math.floor((Math.random() * doc.data().players.length));
-                                    var tempPlayer = tempArray[index1];
-                                    tempArray[index1] = tempArray[index2];
-                                    tempArray[index2] = tempPlayer;
-                                  }
-
-                                  // assign my target to the first person in the queue
-                                  myLinkRef.update({
-                                        target: tempArray[0]
-                                      })
-                                      .then(function() {
-                                        console.log("Players update assign my target to first in queue success.");
-                                        // May need to check for celebrity here - yyyy - or in render game
-                                      })
-                                      .catch(function(error) {
-                                        console.error("Error assign my target to first in queue.", error);
-                                  });
-
-                                  // create the rest of the chain and activate players
-                                  var i;
-                                  for (i=0; i<tempArray.length-1;i++)
-                                  {
-                                    console.log("Iteration " + i + " within create links loop within assassination")
-                                    // create a link in the chain
-                                    db.collection("chain").doc(tempArray[i]).set({
-                                        target: tempArray[i+1]
-                                      })
-                                      .then(function() {
-                                        console.log("Success writing to chain within assassination");
-                                      })
-                                      .catch(function(error) {
-                                        console.error("Error writing to chain  within assassination", error);
-                                      });
-
-                                      // update player status to Active
-                                      db.collection("players").doc(tempArray[i]).update({
-                                        status: PLAYER_STATUS_ACTIVE,
-                                        registrationType:""
-                                      })
-                                      .then(function() {
-                                        console.log("Players status update success within assassination.");
-                                      })
-                                      .catch(function(error) {
-                                        console.error("Error player status update to db within assassination.", error);
-                                      });
-
-                                      // increasing total players by 1  ---------------------------------
-                                      db.collection("gameData").doc("gameData").update({
-                                        statsActive: ++statsActive
-                                      })
-                                      .then(function() {
-                                        console.log("Increased active players by 1, new statsActive is " + statsActive);
-                                      })
-                                      .catch(function(error) {
-                                        console.error("Increased total kills and todays kills failed", error);
-                                      });
-
-                                  } // end for loop
-
-                                  // assign the target of the last player in the queue to original target's target
-                                  // create the last link in the chain
-                                  db.collection("chain").doc(tempArray[i]).set({
-                                      target: myTargetsTargetID
-                                    })
-                                    .then(function() {
-                                      console.log("Success last link within assassination");
-                                    })
-                                    .catch(function(error) {
-                                      console.error("Error last link within assassination", error);
-                                    });
-
-                                    // update last player status to Active
-                                    db.collection("players").doc(tempArray[i]).update({
-                                      status: PLAYER_STATUS_ACTIVE,
-                                      registrationType:""
-                                    })
-                                    .then(function() {
-                                      console.log("Players status update success within assassination.");
-                                    })
-                                    .catch(function(error) {
-                                      console.error("Error player status update to db within assassination.", error);
-                                    });
-
-                                    // increasing total players by 1  ---------------------------------
-                                    db.collection("gameData").doc("gameData").update({
-                                      statsActive: ++statsActive
-                                    })
-                                    .then(function() {
-                                      console.log("Increased active players by 1, new statsActive is " + statsActive);
-                                    })
-                                    .catch(function(error) {
-                                      console.error("Increased total kills and todays kills failed", error);
-                                    });
-
-                                    deleteQueue();
-
-                              } // end if there are players in the queue
-                              else
-                              {  // queue is empty
-
-                                  // check if I'm the only player remaining
-                                  if (playerId == myTargetsTargetID)
-                                  {
-                                    console.log("Game Paused - Only 1 player active.");
-
-                                    // clean up my targets data before handling pause scenario
-                                    // delete old target's link
-                                    db.collection("chain").doc(targetId).delete().then(function() {
-                                        console.log("Document successfully deleted!");
-                                    }).catch(function(error) {
-                                        console.error("Error removing document: ", error);
-                                    });
-
-                                    // change my original target's status to inactive
-                                    var myTargetsPlayerRef = db.collection("players").doc(targetId);
-                                    myTargetsPlayerRef.update({
-                                          status: PLAYER_STATUS_INACTIVE
-                                        })
-                                        .then(function() {
-                                          console.log("Players update success.");
-                                        })
-                                        .catch(function(error) {
-                                          console.error("Error player update to db.", error);
-                                        });
-
-                                    // Set game status to "Paused"  ---------------------------------
-                                    db.collection("gameData").doc("gameData").update({
-                                      status: GAME_STATUS_PAUSED
-                                    })
-                                    .then(function() {
-                                      console.log("Set game status to Paused");
-                                    })
-                                    .catch(function(error) {
-                                      console.error("Set game status to Paused failed", error);
-                                    });
-
-                                    statsActive = 0;
-                                    statsWaiting = 1;
-
-                                    // update stats
-                                    db.collection("gameData").doc("gameData").update({
-                                      statsActive: 0,
-                                      statsWaiting: 1
-                                    })
-                                    .then(function() {
-                                      console.log("Decr stats active by 1");
-                                    })
-                                    .catch(function(error) {
-                                      console.error("Decr stats active failed", error);
-                                    });
-
-
-                                  } // end if I'm the only player remaining
-                                  else
-                                  {
-                                      // Pickup of my targets target (No players waiting)
-                                      myLinkRef.update({
-                                            target: myTargetsTargetID
-                                          })
-                                          .then(function() {
-                                            console.log("Players update assign my target to my targets target's id.");
-                                          })
-                                          .catch(function(error) {
-                                            console.error("Error assign my target to my targets target's id.", error);
-                                      });
-
-                                  }  // end else check if I'm the only player
-
-                              } // end else queue is empty
-
-                              // delete old target's link
-                              db.collection("chain").doc(targetId).delete().then(function() {
-                                  console.log("Document successfully deleted!");
-                              }).catch(function(error) {
-                                  console.error("Error removing document: ", error);
-                              });
-
-                              // change my original target's status to inactive
-                              var myTargetsPlayerRef = db.collection("players").doc(targetId);
-                              myTargetsPlayerRef.update({
-                                    status: PLAYER_STATUS_INACTIVE
-                                  })
-                                  .then(function() {
-                                    console.log("Players update success.");
-                                  })
-                                  .catch(function(error) {
-                                    console.error("Error player update to db.", error);
-                                  });
-
-                                // decreasing total players by 1  ---------------------------------
-                                db.collection("gameData").doc("gameData").update({
-                                  statsActive: --statsActive,
-                                  statsWaiting: 0
-                                })
-                                .then(function() {
-                                  console.log("Decreasing active players by 1 - this could be a double count ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                                })
-                                .catch(function(error) {
-                                  console.error("Increased total kills and todays kills failed", error);
-                                });
-
-                                console.log("Success");
-
-                          } // end waiting queue doc exists
-                          else {
-                            console.log("Waiting queue doc does not exist");
-                          }
-
-                        }).catch(function(error) {
-                          console.log("Error getting playerRef.get() document:", error);
-                        });
-
-                      } // end if name matched
-                      else
-                      {
-                          console.log("Attempted assassination names don't match.");
-                          postMessage(MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
-                          postError(playerId,MESSAGE_TEXT_BOUNTY_FAILED + nameOfTargetsTarget.toLowerCase());
-                          statsOnlyChange = false;
-                          renderGame(status);
-                      }
-
-                  }   // end if doc exists - my targets player ref
-                  else {
-                    console.log("My target's player ref doc doesnt exist");
-                  }
-
-                }).catch(function(error) {
-                  console.log("Error getting playerRef.get() document:", error);
-                  });
-
-            } // end if doc exists - myTargetsLinkRef.get()
-            else {
-              console.log("My myTargetsTargetPlayerRef.get doc doesnt exist");
-            }
-
-          }).catch(function(error) {
-            console.log("Error getting myTargetsPlayerRef.get() document:", error);
-          });
-
-      } // end if mylink doc exists
-      else {
-        console.log("Mylink Doc doesnt exist - confirmAssassination");
-      }
-
-    }).catch(function(error) {
-      console.log("Error getting myLinkRef.get() document:", error);
-    });
-
-    // document.getElementById("targetNameBox").value = "";
-
-}
-
-// -----------------------------------------------------------------------------------
-// start buy back in button listener
-
-function buyBackInButtonClick()
-{
-
-
-  if (gameStatus == GAME_STATUS_MAINTENANCE)
-  {
-    alert(GAME_STATUS_MAINTENANCE_TEXT);
-    return;
-  }
-
-  var answer = confirm("Are you sure you want to buy back in?");
-
-  if (answer == false)
-    return;
-
-  // assume this button is only enabled if owed is 1 or greater and in Inactive status
-  // get player ref
-  var playerRef = db.collection("players").doc(playerId);
-
-  playerRef.get().then(function(doc)
-  {
-    if (doc.exists)
-    {
-        // check status and owed
-        if ((doc.data().status == PLAYER_STATUS_INACTIVE) && (doc.data().owed >= 1))
-        {
-          // proceed with buy back in process - ok
-          // update player status to Waiting, decrement owed in db
-          playerRef.update({
-            status: PLAYER_STATUS_WAITING,
-            owed: Number(doc.data().owed) - 1
-          })
-          .then(function() {
-            console.log("Players status update success - waiting buy back in.");
-          })
-          .catch(function(error) {
-            console.error("Error player status update to db - waiting buy back in", error);
-          });
-
-          // add player to waiting queue
-          var tempQueue = new Array;
-          console.log("About to check DB for waiting queue --------------");
-
-          // get the waiting queue and add player
-          var queueRef = db.collection("queues").doc("waiting");
-          queueRef.get().then(function(doc)
-          {
-            if (doc.exists)
-            {
-                tempQueue = doc.data().players; // save queue locally
-
-                // add new player to local queue
-                tempQueue.push(playerId);
-
-                // update db queue with local queue
-                db.collection("queues").doc("waiting").set({
-                    players: tempQueue
-                  })
-                  .then(function() {
-                    console.log("db setting waiting queue players array success");
-                  })
-                  .catch(function(error) {
-                    console.error("db setting waiting queue players array failed", error);
-                  });
-
-                // add 1 to waiting
-                db.collection("gameData").doc("gameData").update({
-                  statsWaiting: ++statsWaiting
-                })
-                .then(function() {
-                  console.log("Increased total players by 1");
-                })
-                .catch(function(error) {
-                  console.error("Set game status to Not Started failed", error);
-                });
-
-                postMessage(MESSAGE_TEXT_BUY_BACK_IN);
-                postEvent(EVENT_TYPE_PLAYER_BUY_BACK_IN, playerId);
-                status = PLAYER_STATUS_WAITING;
-                statsOnlyChange = false;
-                renderGame(PLAYER_STATUS_WAITING);
-
-            } else
-            {
-              console.log("Error Doc doesnt exists");
-            }
-          }).catch(function(error) {
-              console.log("Error getting queue document:", error);
-              });
-
-
-        } // end if inactive and owed bounty
-        else {
-          // can't buy back in
-          console.log("Can't buy back in.");
-        }
-    } // end if player doc exists
-
-  }); // end player ref get - need error checking
-
-}
-
-// ---------------------------------------------------------
-
-function takeABreakButtonClick()
-{
-
-
-  if (gameStatus == GAME_STATUS_MAINTENANCE)
-  {
-    alert(GAME_STATUS_MAINTENANCE_TEXT);
-    return;
-  }
-
-  var answer = confirm("Are you sure you want to take a break?  You will be eligible to return in " + (minBreakLength/60) + " hours.");
-
-  if (answer == false)
-    return;
-
-  // get player ref
-  var playerRef = db.collection("players").doc(playerId);
-  // var myTargetsID;  // save this for later use
-
-  console.log("Take a break button pressed.  Player id is " + playerId);
-
-  playerRef.get().then(function(doc)
-  {
-    if (doc.exists)
-    {
-        // only take a break if active
-        if (doc.data().status == PLAYER_STATUS_ACTIVE)
-        {
-          status = PLAYER_STATUS_BREAK;
-
-          var now = new Date(Date.now());
-          var newTimeStamp = new firebase.firestore.Timestamp.fromDate(now);
-
-          console.log("Take a break - firestore now date is " + newTimeStamp);
-
-          // proceed with taking a break
-          // update player status to on break
-          playerRef.update({
-            status: PLAYER_STATUS_BREAK,
-            breakTimeStamp: newTimeStamp
-            // breakTime: now()
-          })
-          .then(function() {
-            console.log("Players status update success - break.");
-            postMessage(MESSAGE_TEXT_TAKE_BREAK);
-            postEvent(EVENT_TYPE_PLAYER_TAKE_BREAK, playerId);
-            document.getElementById("messageBoardLabel").innerHTML = "";
-            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-          })
-          .catch(function(error) {
-            console.error("Error player status update to db - break", error);
-          });
-
-          updateChainToSkipMe();
-
-          // decreasing current players by 1
-          gameDataRef.get().then(function(doc)
-          {
-              if (doc.exists)
-              {
-                  console.log("Game Data exists, decreasing current players by 1");
-                  // set initial message and data
-
-                  statsActive = doc.data().statsActive;
-
-                  // increasing total players by 1  ---------------------------------
-                  db.collection("gameData").doc("gameData").update({
-                    statsActive: statsActive - 1
-                  })
-                  .then(function() {
-                    console.log("Decreased total players by 1");
-                  })
-                  .catch(function(error) {
-                    console.error("Set game status to Not Started failed", error);
-                  });
-              } // error checking,
-          });
-
-          statsOnlyChange = false;
-          renderGame(PLAYER_STATUS_BREAK);
-
-        } // end if active
-        else {
-          // Button should only be visible if active status
-          console.log("Incorrect Status to Take Break.  Don't believe this is even reachable.");
-          postMessage(MESSAGE_TEXT_CANT_TAKE_BREAK);
-          postError(playerId,MESSAGE_TEXT_CANT_TAKE_BREAK);
-        }
-    } // end if player doc exists
-
-  }); // end player ref get - need error checking
-
-}  // end take a break button click
-
-
-// ---------------------------------------------------------
-// begin return from break button
-
-function returnFromBreakButtonClick()
-{
-
-  if (gameStatus == GAME_STATUS_MAINTENANCE)
-  {
-    alert(GAME_STATUS_MAINTENANCE_TEXT);
-    return;
-  }
-
-  var answer = confirm("Are you sure you want to return from break?");
-
-  if (answer == false)
-    return;
-
-  // get player ref
-  var playerRef = db.collection("players").doc(playerId);
-
-  console.log("Return break button pressed");
-  playerRef.get().then(function(doc)
-  {
-    if (doc.exists)
-    {
-        // only return from break if on break
-        if (doc.data().status == PLAYER_STATUS_BREAK)
-        {
-            // only allow if after the waiting period
-            var breakTime = new Date((doc.data().breakTimeStamp).toDate());
-            var now = new Date(Date.now());
-            console.log("Now time is " + now + "  Firestore break time is " + breakTime);
-
-            var minsDiff = ((now - breakTime)/1000)/60; // num mins
-            console.log("Mins difference is " + minsDiff);
-
-            if (minsDiff < minBreakLength)
-            {
-              console.log("Too early to return");
-              postMessage(MESSAGE_TEXT_TOO_EARLY_TO_RETURN_FROM_BREAK + String(Math.trunc(minBreakLength - minsDiff) + 1) + " more minutes.");
-              statsOnlyChange = false;
-              renderGame(status);
-              return;
-            }
-
-              status = PLAYER_STATUS_WAITING;
-
-              // proceed with returning break
-              // update player status to Waiting
-              playerRef.update({
-                status: PLAYER_STATUS_WAITING
-              })
-              .then(function() {
-                console.log("Players status update success - return from break.");
-                postMessage(MESSAGE_TEXT_RETURN_BREAK);
-                postEvent(EVENT_TYPE_PLAYER_RETURN_BREAK, playerId);
-                document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-              })
-              .catch(function(error) {
-                console.error("Error player status update to db - return from break", error);
-              });
-
-              // put myself in the queue
-              var tempQueue = new Array;
-              var queueRef = db.collection("queues").doc("waiting");
-              queueRef.get().then(function(doc)
-              {
-                if (doc.exists)
-                {
-                    tempQueue = doc.data().players; // save queue locally
-
-                    // add me onto local queue
-                    tempQueue.push(playerId);
-
-                    // update db queue with local queue
-                    queueRef.set({
-                        players: tempQueue
-                      })
-                      .then(function() {
-                        console.log("db setting waiting queue players array success");
-                      })
-                      .catch(function(error) {
-                        console.error("db setting waiting queue players array failed", error);
-                      });
-
-                      // add 1 to waiting
-                      db.collection("gameData").doc("gameData").update({
-                        statsWaiting: ++statsWaiting
-                      })
-                      .then(function() {
-                        console.log("Increased total players by 1");
-                      })
-                      .catch(function(error) {
-                        console.error("Set game status to Not Started failed", error);
-                      });
-
-                      renderGame(status);
-
-
-                }   // end if doc.exists
-                else
-                {
-                  console.log("Error queue Doc doesnt exists");
-                }
-              }).catch(function(error) {
-                  console.log("Error getting queue document:", error);
-                  });
-
-              statsOnlyChange = false;
-              renderGame(PLAYER_STATUS_WAITING);
-
-        }  // end if status is break
-        else {
-          console.log("Not on break, can't come back from break.");
-          postMessage(MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK);
-          postError(playerId,MESSAGE_TEXT_LOGIN_CANT_RETURN_FROM_BREAK);
-        }
-    }  // end if player ref doc exists
-
-  }); // end playerRef.get
-
-} //  end returnFromBreakButton click
-
-// ------------------  Pic functions ------------------------
-
-function uploadPictureButtonClick()
-{
-
-    if (gameStatus == GAME_STATUS_MAINTENANCE)
-    {
-      alert(GAME_STATUS_MAINTENANCE_TEXT);
-      return;
-    }
-
-    var fileChosen = document.getElementById("playerPictureInput");
-    var curFiles = fileChosen.files;
-
-    if(curFiles.length === 1)   // only allow one picture
-    {
-        // get player reference to update picture field
-        myPicFileName = curFiles[0].name;   // set global var
-
-        var playerRef = db.collection("players").doc(playerId);
-        playerRef.get().then(function(doc)
-        {
-          if (doc.exists)
-          {
-                // update player picture name field
-                playerRef.update({
-                  pictureName: myPicFileName
-                })
-                .then(function() {
-                  console.log("Updated pic name in player db document.");
-                  // postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
-                })
-                .catch(function(error) {
-                  console.error("Error player pic name update", error);
-                  postMessage(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
-                  postError(playerId,MESSAGE_TEXT_UPLOAD_PIC_FAILED);
-                  document.getElementById("playerPictureInput").value = "";
-                });
-          } // end if player doc exists - need error checking
-
-        });
-
-        var fullPath = String(playerId) + "/" + myPicFileName;
-
-        // Create a reference
-        var myFileRef = storageRef.child(fullPath);
-
-        // Upload file
-        var uploadTask = myFileRef.put(curFiles[0]);  // needs error checking
-
-        // Register three observers:
-        // 1. 'state_changed' observer, called any time the state changes
-        // 2. Error observer, called on failure
-        // 3. Completion observer, called on successful completion
-
-        uploadTask.on('state_changed', function(snapshot)
-        {
-              // Observe state change events such as progress, pause, and resume
-              // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
-              var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-
-              console.log('Upload is ' + progress + '% done');
-
-              if (progress > progressCounter * 5)
-              {
-                postMessage("Uploading: " + Math.trunc(progress) + "% complete.");
-                statsOnlyChange = false;
-                renderGame(status);
-                progressCounter++;
-              }
-
-              switch (snapshot.state)
-              {
-                case firebase.storage.TaskState.PAUSED: // or 'paused'
-                  console.log('Upload is paused');
-                  break;
-                case firebase.storage.TaskState.RUNNING: // or 'running'
-                  console.log('Upload is running');
-                  break;
-              }
-
-          },
-          function(error)
-          {
-              // Handle unsuccessful uploads
-              console.log("Unsuccessful file upload");
-              postMessage(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
-              postError(MESSAGE_TEXT_UPLOAD_PIC_FAILED);
-
-              document.getElementById("playerPictureInput").value = "";
-
-          },
-          function()
-          {
-                // Handle successful uploads on complete
-                // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-                uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL)
-                {
-                  progressCounter = 0;
-                  console.log('Success - File available at', downloadURL);
-                  postMessage(MESSAGE_TEXT_UPLOAD_PIC_SUCCESS);
-                  postEvent(EVENT_TYPE_PLAYER_UPLOAD_PIC, playerId);
-                  document.getElementById("playerPictureInput").value = "";
-                  statsOnlyChange = false;
-                  renderGame(status);
-                });
-          });
-
-    } // end if 1 file chosen
-    else
-    {
-      console.log("You must choose 1 file");
-      postMessage(MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE);
-      postError(playerId,MESSAGE_TEXT_MUST_CHOOSE_ONE_FILE);
-      document.getElementById("playerPictureInput").value = "";
-    }
-
-}  // end function
-
-// ------------------------------------------------------------------
-// Start view my picture button listener
-
-function viewMyPictureButtonClick()
-{
-
-      console.log("View my picture clicked, myPicFileName is " + myPicFileName);
-      var myPictureRef = storageRef.child(String(playerId) + "/" + myPicFileName);
-
-      myPictureRef.getDownloadURL().then(function(url)
-      {
-        console.log("getDownloadURL worked");
-
-        showMyPic = true;
-        myURL = url;
-
-        statsOnlyChange = false;
-        renderGame(status);
-
-      }).catch(function(error)
-        {
-          // decodeFileErrorCode(error,PIC_MISSING_MINE);
-          console.log("View my picture failed");
-          postMessage(MESSAGE_TEXT_MY_FILE_NOT_FOUND);
-          statsOnlyChange = false;
-          renderGame(status);
-          postError(playerId, PIC_MISSING_MINE);
-        });  // end catch
-
-} // end view my pic button
-
-// ---------------------------------------------------------
-
-// quitGameButton
-
-function quitGameButtonClick()
-{
-
-    if (gameStatus == GAME_STATUS_MAINTENANCE)
-    {
-      alert(GAME_STATUS_MAINTENANCE_TEXT);
-      return;
-    }
-
-    console.log("Quit game called");
-    // var myTargetsID;  // save this for later use if nec
-
-    // confirm the user really wants to quit
-
-    var answer = confirm("Are you sure you want to quit?");
-
-    if (answer == false)
-      return;
-
-    var playerRef = db.collection("players").doc(playerId);
-    playerRef.get().then(function(doc)
-    {
-        if (doc.exists)
-        {
-            switch (doc.data().status)
-            {
-              case PLAYER_STATUS_GAME_OVER:
-
-                postMessage(MESSAGE_TEXT_CANT_QUIT_GAME_OVER);
-                return;
-                break;
-
-              case PLAYER_STATUS_ACTIVE:  // delete chain link, empty queue
-
-                  console.log("In quit game, my status is " + doc.data().status + "  My targets id is " + targetId);
-
-                  updateChainToSkipMe();
-
-                  // decreasing current players by 1
-                  gameDataRef.get().then(function(doc)
-                  {
-                      if (doc.exists)
-                      {
-                          console.log("Game Data exists, decreasing current players by 1");
-                          // set initial message and data
-
-                          statsActive = doc.data().statsActive;
-
-                          // decreasing active players by 1  ---------------------------------
-                          db.collection("gameData").doc("gameData").update({
-                            statsActive: statsActive - 1
-                          })
-                          .then(function() {
-                            console.log("Increased total players by 1");
-                          })
-                          .catch(function(error) {
-                            console.error("Set game status to Not Started failed", error);
-                          });
-                      } // error checking,
-                  });
-
-                  deletePlayer();   // yyyy
-
-                  postMessage(MESSAGE_TEXT_QUIT);
-                  postEvent(EVENT_TYPE_PLAYER_QUIT_GAME, playerId);
-                  statsOnlyChange = false;
-                  renderGame(PLAYER_STATUS_LOGGED_OFF);
-
-                break;
-
-              case PLAYER_STATUS_WAITING:
-
-                  // delete from queue
-                  // First get queue, loop through, create new queue without player
-                  var tempQueue = new Array;
-
-                  // get the waiting queue and remove this player
-                  var queueRef = db.collection("queues").doc("waiting");
-                  queueRef.get().then(function(doc)
-                  {
-                    if (doc.exists)
-                    {
-                        var i;
-
-                        console.log("Length of waiting queue going in is " + doc.data().players.length);
-                        for (i=0;i<doc.data().players.length;i++)
-                        {
-                            console.log("Waiting queue id is " + doc.data().players[i] + " My id is " + playerId);
-                            if (doc.data().players[i] != playerId)
-                            {
-                              console.log("Pushing id " + doc.data().players[i] + " onto temp q");
-                              tempQueue.push(doc.data().players[i]);
-                            }
-                        }
-
-                        if (doc.data().players.length == 1) // only me
-                        {
-                            console.log("Queue only me");
-                            // update db queue with local queue
-                            db.collection("queues").doc("waiting").update({
-                                players: []
-                            })
-                            .then(function() {
-                              console.log("db setting waiting queue players array success");
-                            })
-                            .catch(function(error) {
-                              console.error("db setting waiting queue players array failed", error);
-                            });
-
-                        }
-                        else
-                        {
-                            console.log("Queue not only me");
-                            // update db queue with local queue
-                            db.collection("queues").doc("waiting").set({
-                                players: tempQueue
-                            })
-                            .then(function() {
-                              console.log("db setting waiting queue players array success");
-                            })
-                            .catch(function(error) {
-                              console.error("db setting waiting queue players array failed", error);
-                            });
-
-                        }
-
-                        statsWaiting = doc.data().statsWaiting;
-
-                        // decreasing active players by 1  ---------------------------------
-                        db.collection("gameData").doc("gameData").update({
-                          statsActive: statsWaiting - 1
-                        })
-                        .then(function() {
-                          console.log("decreased waiting players by 1");
-                        })
-                        .catch(function(error) {
-                          console.error("decreased waiting by 1 failed", error);
-                        });
-
-                        deletePlayer();
-
-                        statsOnlyChange = false;
-                        renderGame(PLAYER_STATUS_LOGGED_OFF);
-
-                    }  // end if doc.exists
-                    else
-                    {
-                      console.log("Error Queue Doc doesn't exist - Remove Player");
-                    }
-                  }).catch(function(error) {
-                      console.log("Error getting queue document - Remove Player:", error);
-                  });
-
-                break;
-
-              case PLAYER_STATUS_SCHEDULED:
-
-                    // delete from scheduled queue
-                    // First get queue, loop through, create new queue without player
-                    var tempQueue = new Array;
-
-                    // get the waiting queue and remove this player
-                    var queueRef = db.collection("queues").doc("scheduled");
-                    queueRef.get().then(function(doc)
-                    {
-                      if (doc.exists)
-                      {
-                          var i;
-
-                          console.log("Length of scheduled queue going in is " + doc.data().players.length);
-                          for (i=0;i<doc.data().players.length;i++)
-                          {
-                              console.log("Scheduled queue id is " + doc.data().players[i] + " My id is " + playerId);
-                              if (doc.data().players[i] != playerId)
-                              {
-                                console.log("Pushing id " + doc.data().players[i] + " onto temp q");
-                                tempQueue.push(doc.data().players[i]);
-                              }
-                          }
-
-                          if (doc.data().players.length == 1) // only me
-                          {
-                              console.log("Queue only me");
-                              // update db queue with local queue
-                              db.collection("queues").doc("scheduled").update({
-                                  players: []
-                              })
-                              .then(function() {
-                                console.log("db setting scheduled queue players array success");
-                              })
-                              .catch(function(error) {
-                                console.error("db setting scheduled queue players array failed", error);
-                              });
-
-                          }
-                          else
-                          {
-                              console.log("Queue not only me");
-                              // update db queue with local queue
-                              db.collection("queues").doc("scheduled").set({
-                                  players: tempQueue
-                              })
-                              .then(function() {
-                                console.log("db setting scheduled queue players array success");
-                              })
-                              .catch(function(error) {
-                                console.error("db setting scheduled queue players array failed", error);
-                              });
-
-                          }
-
-                          statsSched = doc.data().statsSched;
-
-                          // decreasing active players by 1  ---------------------------------
-                          db.collection("gameData").doc("gameData").update({
-                            statsSched: statsSched - 1
-                          })
-                          .then(function() {
-                            console.log("decreased statsSched players by 1");
-                          })
-                          .catch(function(error) {
-                            console.error("decreased statsSched by 1 failed", error);
-                          });
-
-                          deletePlayer();
-
-                          statsOnlyChange = false;
-                          renderGame(PLAYER_STATUS_LOGGED_OFF);
-
-                      }  // end if doc.exists
-                      else
-                      {
-                        console.log("Error Queue Doc doesn't exist - Remove Player");
-                      }
-                    }).catch(function(error) {
-                        console.log("Error getting queue document - Remove Player:", error);
-                    });
-
-                  break;
-
-              case PLAYER_STATUS_INACTIVE:
-              case PLAYER_STATUS_BREAK:
-              case PLAYER_STATUS_LOGGED_OFF:
-              case PLAYER_STATUS_REGISTERED:
-
-                  deletePlayer();
-                  statsOnlyChange = false;
-                  renderGame(PLAYER_STATUS_LOGGED_OFF);
-
-                break;
-
-              default:
-
-            }
-
-        }  // end if doc exists, original player ref
-        else {
-          console.log("Player doesn't exist on Quit Game call");
-          postMessage(MESSAGE_TEXT_PLAYER_NOT_FOUND);
-        }
-
-    }); // end player ref.get
-
-} // end quit game button click
-
-// ---------------------------------------------------------
-// Begin volunteer button
-
-function volunteerButtonClick()
-{
-
-    if (gameStatus == GAME_STATUS_OVERNIGHT)
-    {
-        alert(MESSAGE_TEXT_GAME_STATUS_OVERNIGHT + morningStartTime + " AM.");
-        return;
-    }
-
-
-    if (gameStatus == GAME_STATUS_MAINTENANCE)
-    {
-      alert(GAME_STATUS_MAINTENANCE_TEXT);
-      return;
-    }
-
-    var answer = confirm("Are you sure you want to volunteer?");
-
-    if (answer == false)
-      return;
-
-
-    iVolunteered = true;
-
-    // console.log("Got hereeeee");
-
-    // error checking for near simultaneous volunteers - get var from db first and check?  Might help?
-    var gameDataRef = db.collection("gameData").doc("gameData");
-    gameDataRef.get().then(function(doc)
-    {
-      if (doc.exists)
-      {
-        if (doc.data().volunteerNeeded == false)
-        {
-          document.getElementById("volunteerButton").style.visibility = "hidden";
-          postMessage(MESSAGE_TEXT_VOLUNTEER_FILLED);
-          statsOnlyChange = false;
-          renderGame(status);
-          return;
-        }
-        else
-        {
-
-          // flip db var to false
-          db.collection("gameData").doc("gameData").update({
-            volunteerNeeded: false
-          })
-          .then(function() {
-            console.log("Updated game data volunteer needed to false.");
-          })
-          .catch(function(error) {
-            console.error("Error - game data volunteer needed to false.", error);
-          });
-
-          volunteerNeeded = false;
-
-          // need new version of this to bring in scheduled queue too - yyy ?
-          processVolunteer();
-
-          // get player ref
-          var playerRef = db.collection("players").doc(playerId);
-
-          playerRef.get().then(function(doc)
-          {
-            if (doc.exists)
-            {
-                // update player status to inactive
-                playerRef.update({
-                  status: PLAYER_STATUS_INACTIVE,
-                  owed: doc.data().owed + 1
-                })
-                .then(function() {
-                  console.log("Players status update success - volunteer inactive.");
-                  postEvent(EVENT_TYPE_PLAYER_VOLUNTEER, playerId);
-                })
-                .catch(function(error) {
-                  console.error("Error player status update to db - volunteer inactive", error);
-                });
-
-            }   // if doc exists
-
-          });
-
-          // decrement active players by 1
-
-          // decreasing total players by 1  ---------------------------------
-          db.collection("gameData").doc("gameData").update({
-            statsActive: --statsActive,
-            statsWaiting: 0
-          })
-          .then(function() {
-            console.log("Decreasing active players by 1 - this could be a double count ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-          })
-          .catch(function(error) {
-            console.error("Increased total kills and todays kills failed", error);
-          });
-
-
-
-
-          // rely on status change for screen redraw
-
-        } // volunteer needed is still true, continue
-
-      } // end if doc.exists
-    });
-
-}   // end volunteer button click
-
-// -------------------------------------------------------
-// similar to updateChainToSkipMe, however, assume scheduled queue exists
-
-function processVolunteer()
-{
-    // var myTargetsID;
-
-    console.log("In processVolunteer id is " + playerId);
-
-    var linkRef = db.collection("chain").doc(playerId);
-    linkRef.get().then(function(doc)
-    {
-      console.log("In processVolunteer link ref function called ");
-
-      if (doc.exists) // Player is active, in the chain
-      {
-          console.log("In processVolunteer Doc exists.");
-
-          targetId = doc.data().target;
-          console.log("In processVolunteer, my targets id is " + targetId);
-
-          // Determine which player has me as their target
-          var myAssassinsId;
-
-          // query db for the document where target = my id
-          var linksRef = db.collection("chain");
-          var query = linksRef.where("target", "==", playerId);
-
-          // update chain - get the player that has me as their target
-          query.get().then((snapshot) =>
-          {
-                // console.log("Snapshot size is " + snapshot.size); // + "  Snapshot target data is " + snapshot.docs);
-                // console.log("Snapshot docs array 0 element id is " + snapshot.docs[0].id); // + "  Snapshot target data is " + snapshot.docs);
-                // only 1 always
-                myAssassinsId = snapshot.docs[0].id;
-
-                console.log("In processVolunteer, my assassin's id is " + myAssassinsId);
-
-                // check here for paused scenario -
-                // if my target has me as their target, it must be paused
-                // if (targetId == myAssassinsId)
-                // {
-                //   // go into paused mode
-                //   console.log("Game Paused - Only 1 player active. Found within processVolunteer function.");
-                //   postMessage(GAME_STATUS_PAUSED_TEXT);
-                //
-                //   // Set game status to "Paused"  ---------------------------------
-                //   db.collection("gameData").doc("gameData").update({
-                //     status: GAME_STATUS_PAUSED
-                //   })
-                //   .then(function() {
-                //     console.log("Set game status to Paused");
-                //   })
-                //   .catch(function(error) {
-                //     console.error("Set game status to Paused failed", error);
-                //   });
-                //
-                //   return;
-                //
-                // }
-
-                // not a pause scenario, Continue
-                // Get reference to the assassin that has me as their target
-                var myAssassinsLinkRef = db.collection("chain").doc(myAssassinsId);
-
-                // Grab scheduled queue first
-                var tempArray = new Array;
-
-                // Check the sched queue before rebuilding chain - get the waiting queue
-                var schedQueueRef = db.collection("queues").doc("scheduled");
-                schedQueueRef.get().then(function(doc)
-                {
-                  // console.log("Inside sched queue ref up front");
-                  if (doc.exists) // waiting queue doc exists
-                  {
-                      console.log("Scheduled queue exists");
-                      // console.log("Waiting queue Doc exists");
-                      if (doc.data().players != 0)  // bring in waiting players if queue not empty
-                      {
-                          console.log("Scheduled queue exists, players array not zero");
-                          tempArray = doc.data().players;   // create local array to shuffle players
-                      }
-
-                      // Check the waiting queue before rebuilding chain - get the waiting queue
-                      var queueRef = db.collection("queues").doc("waiting");
-                      queueRef.get().then(function(doc)
-                      {
-                        // console.log("Inside queue ref up front");
-                        if (doc.exists) // waiting queue doc exists
-                        {
-
-                            // console.log("Waiting queue Doc exists");
-                            if (doc.data().players != 0)  // bring in waiting players if queue not empty
-                            {
-
-                                console.log("Waiting queue exists in process volunteer, players array not blank.");
-                                var i;
-                                for (i=0; i<doc.data().players.length; i++ )
-                                  tempArray.push(doc.data().players[i]);
-
-                            } // if waiting queue players array has players
-                            else
-                            {
-                              console.log("Waiting queue is blank in process volunteer");
-                            }
-
-                        } // if doc exists for waiting queue
-
-                        for (i=0;i<tempArray.length*50;i++)
-                        {
-                          var index1 = Math.floor((Math.random() * doc.data().players.length));
-                          var index2 = Math.floor((Math.random() * doc.data().players.length));
-                          var tempPlayer = tempArray[index1];
-                          tempArray[index1] = tempArray[index2];
-                          tempArray[index2] = tempPlayer;
-                        }
-
-                        console.log("About to assign my assassin in process volunteer. tempQ size is now " + tempArray.length);
-                        // assign the person that had me to the first person in the queue
-                        myAssassinsLinkRef.update({
-                              target: tempArray[0]
-                            })
-                            .then(function() {
-                              console.log("Players update assign my target to first in queue success.");
-                            })
-                            .catch(function(error) {
-                              console.error("Error assign my target to first in queue.", error);
-                            });
-
-                          // create the rest of the chain and activate players
-                          var i;
-                          for (i=0; i<tempArray.length-1;i++)
-                          {
-                            console.log("Iteration " + i + " within create links loop within assassination")
-                            // create a link in the chain
-                            db.collection("chain").doc(tempArray[i]).set({
-                                target: tempArray[i+1]
-                              })
-                              .then(function() {
-                                console.log("Success writing to chain within assassination");
-                              })
-                              .catch(function(error) {
-                                console.error("Error writing to chain  within assassination", error);
-                              });
-
-                              // update player status to Active
-                              db.collection("players").doc(tempArray[i]).update({
-                                status: PLAYER_STATUS_ACTIVE,
-                                registrationType: ""
-                              })
-                              .then(function() {
-                                console.log("Players status update success within assassination.");
-                              })
-                              .catch(function(error) {
-                                console.error("Error player status update to db within assassination.", error);
-                              });
-
-                              console.log("Before increase stats active by 1, statsActive is " + statsActive);
-
-                              // increasing active players by 1  ---------------------------------
-                              db.collection("gameData").doc("gameData").update({
-                                statsActive: ++statsActive
-                              })
-                              .then(function() {
-                                console.log("Increased stats active by 1");
-                              })
-                              .catch(function(error) {
-                                console.error("Increased stats active failed", error);
-                              });
-
-                          } // end for loop
-
-
-                          console.log("About to update chain i is " + i + " target id is " + targetId);
-
-                          // assign the target of the last player in the queue to my original target
-                          // create the last link in the chain
-                          db.collection("chain").doc(tempArray[i]).set({
-                              target: targetId
-                            })
-                            .then(function() {
-                              console.log("Success last link within assassination");
-                            })
-                            .catch(function(error) {
-                              console.error("Error last link within assassination", error);
-                            });
-
-                            // update last player status to Active
-                            db.collection("players").doc(tempArray[i]).update({
-                              status: PLAYER_STATUS_ACTIVE,
-                              registrationType:""
-                            })
-                            .then(function() {
-                              console.log("Players status update success within assassination.");
-                            })
-                            .catch(function(error) {
-                              console.error("Error player status update to db within assassination.", error);
-                            });
-
-                            // increasing active players by 1  ---------------------------------
-                            db.collection("gameData").doc("gameData").update({
-                              statsActive: ++statsActive
-                            })
-                            .then(function() {
-                              console.log("Increased stats active by 1");
-                            })
-                            .catch(function(error) {
-                              console.error("Increased stats active failed", error);
-                            });
-
-
-                            deleteQueue();
-                            deleteSchedQueue();
-
-                            // delete my link - Maybe move this down
-                            linkRef.delete().then(function() {
-                                console.log("my link take a break Document successfully deleted!");
-                            }).catch(function(error) {
-
-                                console.error("my link take a break Error removing document: ", error);
-                            });
-
-                            statsWaiting = 0;
-                            statsSched = 0;
-
-                            // ---------------------------------
-                            db.collection("gameData").doc("gameData").update({
-                              statsWaiting: 0,
-                              statsSched: 0
-                            })
-                            .then(function() {
-                              console.log("Increased stats active by 1");
-                            })
-                            .catch(function(error) {
-                              console.error("Increased stats active failed", error);
-                            });
-
-                      }); // end queueRef.get()
-                  } // end if sched queue doc exists
-
-                });
-
-          }); // end query.get for who has me as their target
-
-      }   // end if doc exists
-      else {
-        console.log("In processVolunteer - My link in chain doesn't exist - updateChainToSkipMe.");
-        postMessage(MESSAGE_TEXT_CANT_VOLUNTEER);
-
-      }
-    });   // link ref.get()
-
-} // end function updateChainToSkipMe
-
-
-// ---------------------------------------------------------
-// Intercept Enter Key - Confirm assassination if text entered
-
-document.onkeydown = checkKey;
-
-function checkKey(evt)
-{
-  // this line of code was needed due to old browsers, possibly firefox, Nathan had an issue
-  evt = evt || window.event;
-
-  switch (evt.keyCode)
-  {
-      case ENTER_KEY:
-
-          console.log("Made it to switch, status is " + status);
-
-            switch (Number(status))
-            {
-              case PLAYER_STATUS_ACTIVE :
-
-                  // check if Target's target name field is filled
-                  if (document.getElementById("targetNameBox").value != "")
-                  {
-                    confirmAssassination();
-                  }
-                  else
-                  {
-                    postMessage(MESSAGE_TEXT_INVALID_SCREEN_DATA);
-                    return;
-                  }
-
-                break;
-
-              case PLAYER_STATUS_LOGGED_OFF :
-
-                  console.log("Player logged off");
-
-                  loginButtonClick();
-
-                  break;
-
-              case PLAYER_STATUS_REGISTERED :
-
-                      console.log("Player registered");
-
-                      if (loggedIn == false)
-                        loginButtonClick();
-
-                      break;
-
-                default:
-
-            }
-
-          break;
-
-      default:
-
-  } // end switch
-
-} // end function checkKey interceptor
-
-// ---------------------------------------------------------
-// start function delete waiting queue
-
-function deleteQueue()
-{
-  db.collection("queues").doc("waiting").update({
-    players: []
-  })
-  .then(function() {
-    console.log("Queue delete success within assassination.");
-  })
-  .catch(function(error) {
-    console.error("Error queue delete within assassination.", error);
-  });
-
-}
-
-// ---------------------------------------------------------
-
-function deleteSchedQueue()
-{
-  db.collection("queues").doc("scheduled").update({
-    players: []
-  })
-  .then(function() {
-    console.log("Queue sched delete success within assassination.");
-  })
-  .catch(function(error) {
-    console.error("Error sched queue delete within assassination.", error);
-  });
-
-}
-
-// --------------------------------------------
-// Repeatable helper functions
-// updateChainToSkipMe - called when player goes on break or quits game
-
-function updateChainToSkipMe()
-{
-    // var myTargetsID;
-
-    console.log("In updateChainToSkipMe id is " + playerId);
-
-    var linkRef = db.collection("chain").doc(playerId);
-
-    linkRef.get().then(function(doc)
-    {
-      console.log("In updateChainToSkipMe link ref function called ");
-
-      if (doc.exists) // Player is active, in the chain
-      {
-          console.log("In updateChainToSkipMe Doc exists.");
-
-          targetId = doc.data().target;
-          console.log("In updateChainToSkipMe, my targets id is " + targetId);
-
-          // Determine which player has me as their target
-          var myAssassinsId;
-
-          // query db for the document where target = my id
-          var linksRef = db.collection("chain");
-          var query = linksRef.where("target", "==", playerId);
-
-          // update chain
-          query.get().then((snapshot) =>
-          {
-                console.log("I found the link of my assassin");
-                // only 1 always
-                myAssassinsId = snapshot.docs[0].id;
-
-                console.log("In updateChainToSkipMe, my assassin's id is " + myAssassinsId);
-
-                // check here for paused scenario -
-                // if my target has me as their target, it must be paused
-                if (targetId == myAssassinsId)
-                {
-                  // go into paused mode
-                  console.log("Game Paused - Only 1 player active. Found within updateChainToSkipMe function.");
-                  postMessage(GAME_STATUS_PAUSED_TEXT);
-
-                  // Set game status to "Paused"  ---------------------------------
-                  db.collection("gameData").doc("gameData").update({
-                    status: GAME_STATUS_PAUSED
-                  })
-                  .then(function() {
-                    console.log("Set game status to Paused");
-                  })
-                  .catch(function(error) {
-                    console.error("Set game status to Paused failed", error);
-                  });
-
-                  return;
-
-                }
-
-                // not a pause scenario, Continue
-                // Get reference to the assassin that has me as their target
-                var myAssassinsLinkRef = db.collection("chain").doc(myAssassinsId);
-
-                // Check the waiting queue before rebuilding chain - get the waiting queue
-                var queueRef = db.collection("queues").doc("waiting");
-                queueRef.get().then(function(doc)
-                {
-                  // console.log("Inside queue ref up front");
-                  if (doc.exists) // waiting queue doc exists
-                  {
-
-                      // zzzz stats issue here - not decrementing waiting queue???
-
-                      // console.log("Waiting queue Doc exists");
-                      if (doc.data().players != 0)  // bring in waiting players if queue not empty
-                      {
-                          var i;
-                          var tempArray = new Array;
-                          tempArray = doc.data().players;   // create local array to shuffle players
-
-                          for (i=0;i<tempArray.length*50;i++)
-                          {
-                            var index1 = Math.floor((Math.random() * doc.data().players.length));
-                            var index2 = Math.floor((Math.random() * doc.data().players.length));
-                            var tempPlayer = tempArray[index1];
-                            tempArray[index1] = tempArray[index2];
-                            tempArray[index2] = tempPlayer;
-                          }
-
-                          // assign the person that had me to the first person in the queue
-                          myAssassinsLinkRef.update({
-                                target: tempArray[0]
-                              })
-                              .then(function() {
-                                console.log("Players update assign my target to first in queue success.");
-                              })
-                              .catch(function(error) {
-                                console.error("Error assign my target to first in queue.", error);
-                          });
-
-                          // create the rest of the chain and activate players
-                          var i;
-                          for (i=0; i<tempArray.length-1;i++)
-                          {
-                            console.log("Iteration " + i + " within create links loop within updateChainToSkipMe")
-                            // create a link in the chain
-                            db.collection("chain").doc(tempArray[i]).set({
-                                target: tempArray[i+1]
-                              })
-                              .then(function() {
-                                console.log("Success writing to chain within updateChainToSkipMe");
-                              })
-                              .catch(function(error) {
-                                console.error("Error writing to chain  within updateChainToSkipMe", error);
-                              });
-
-                              // update player status to Active
-                              db.collection("players").doc(tempArray[i]).update({
-                                status: PLAYER_STATUS_ACTIVE,
-                                registrationType:""
-                              })
-                              .then(function() {
-                                console.log("Players status update success within updateChainToSkipMe.");
-                              })
-                              .catch(function(error) {
-                                console.error("Error player status update to db within updateChainToSkipMe.", error);
-                              });
-
-                              // increasing total players by 1  ---------------------------------
-                              db.collection("gameData").doc("gameData").update({
-                                statsActive: ++statsActive
-                              })
-                              .then(function() {
-                                console.log("Increased active players by 1, new statsActive is " + statsActive);
-                              })
-                              .catch(function(error) {
-                                console.error("Increased total kills and todays kills failed", error);
-                              });
-
-
-                          } // end for loop
-
-                          // assign the target of the last player in the queue to my original target
-                          // create the last link in the chain
-                          db.collection("chain").doc(tempArray[i]).set({
-                              target: targetId
-                            })
-                            .then(function() {
-                              console.log("Success last link within updateChainToSkipMe");
-                            })
-                            .catch(function(error) {
-                              console.error("Error last link within updateChainToSkipMe", error);
-                            });
-
-                            // update last player status to Active
-                            db.collection("players").doc(tempArray[i]).update({
-                              status: PLAYER_STATUS_ACTIVE,
-                              registrationType:""
-                            })
-                            .then(function() {
-                              console.log("Players status update success within updateChainToSkipMe.");
-                            })
-                            .catch(function(error) {
-                              console.error("Error player status update to db within updateChainToSkipMe.", error);
-                            });
-
-                            // increasing total players by 1  ---------------------------------
-                            db.collection("gameData").doc("gameData").update({
-                              statsActive: ++statsActive,
-                              statsWaiting: 0
-                            })
-                            .then(function() {
-                              console.log("Increased active players by 1, new statsActive is " + statsActive);
-                            })
-                            .catch(function(error) {
-                              console.error("Increased total kills and todays kills failed", error);
-                            });
-
-
-                            deleteQueue();
-
-                            // delete my link - Maybe move this down
-                            linkRef.delete().then(function() {
-                                console.log("my link take a break Document successfully deleted!");
-                            }).catch(function(error) {
-
-                                console.error("my link take a break Error removing document: ", error);
-                            });
-
-                      } // end if there are players in the queue
-                      else
-                      {  // queue is empty
-                          console.log("Queue is empty");
-
-                          // Assign the person that had me to my target (No players waiting)
-                          myAssassinsLinkRef.update({
-                                target: targetId
-                              })
-                              .then(function() {
-                                console.log("Players assign the person that had me to my target.");
-                              })
-                              .catch(function(error) {
-                                console.error("Error assign my target to my targets target's id.", error);
-                          });
-
-                          // delete my link
-                          linkRef.delete().then(function() {
-                              console.log("my link take a break Document successfully deleted!");
-                          }).catch(function(error) {
-
-                              console.error("my link take a break Error removing document: ", error);
-                          });
-
-                      }   // end else - queue was empty
-
-                  } // end if queue doc exists
-                  else {
-                    console.log("Queue doc doesn't exist in take a break");
-                  }
-
-                });
-
-          }); // need error checking
-
-
-      }   // end if doc exists
-      else {
-        console.log("In updateChainToSkipMe - My link in chain doesn't exist - updateChainToSkipMe.");
-      }
-    }).catch(function(error) {
-      console.log("updateChainToSkipMe link ref error getting looking for my link in the chain");
-      //postMessage(MESSAGE_TEXT_FATAL_ERROR);
-      postError(SYSTEM_ID,ERROR_GAME_DATA_REF_DOESNT_EXIST);
-      //console.log("Error getting gameRefData.get() document:", error);
-      });
-
-} // end function updateChainToSkipMe
-
-// ---------------------------------------
-
-function deletePlayer()   // change status only, do not delete
-{
-
-  status = PLAYER_STATUS_QUIT;
-
-  db.collection("players").doc(playerId).update({
-    status: PLAYER_STATUS_QUIT
-  })
-  .then(function() {
-    console.log("Player status set to quit.");
-  })
-  .catch(function(error) {
-    console.error("Error Player status set to quit.", error);
-  });
-
-
-}
-
-// ---------------------------------------------------------
-
-function postEvent(inId, inMessage)
-{
-    console.log("Event - Id = " + inId + "  Message = " + inMessage);
-
-    // write error to db with meaningful text
-    events.add({
-      id: inId,
-      messageText: inMessage,
-      timeStamp: new firebase.firestore.Timestamp.fromDate(new Date(Date.now()))
-    })
-    .then(function(docRef) {
-        console.log("Event Document written with event ID: ", inId);
-    })
-    .catch(function(error) {
-        console.error("Event adding Error: ", error);
-    });
-
-}
-
-// ---------------------------------------
-
-function postError(inId, inMessage)
-{
-    console.log("Error - Id = " + inId + "  Message = " + inMessage);
-
-    // write error to db with meaningful text
-    errors.add({
-      id: inId,
-      messageText: inMessage,
-      timeStamp: new firebase.firestore.Timestamp.fromDate(new Date(Date.now()))
-    })
-    .then(function(docRef) {
-        console.log("Error Document written with player ID: ", inId);
-    })
-    .catch(function(error) {
-        console.error("Error adding Error document: ", error);
-    });
-
-}
-
-// ------------------------------------------
-
-function postMessage(inMessage)
-{
-    console.log("Post Message called, inMessage is " + inMessage + "  Total current messages before this one is " + messages.length);
-
-
-    var i;
-    var wentOverLimit = false;
-    // document.getElementById("messageBoard").innerHTML = "";
-
-    if (messages.length == 0)
-    {
-        console.log("Message length 0");
-        messages.push([inMessage, new Date(Date.now())]);
-        return;
-    }
-    else
-    {
-
-        console.log("Message length not 0");
-
-        // reject message if fast succession of repeats
-
-        var now = new Date(Date.now());
-        var secDiff = ((now - messages[0][1])/1000); // num secs
-
-        // alert("Sec diff between now and last message is " + secDiff );
-        console.log("-----------------------Sec diff between now and last message is " + secDiff );
-
-        if (inMessage == messages[0][0])
-            console.log("Last 2 messages are the same ----------- ");
-
-
-        if ((secDiff < 1 ) && (inMessage == messages[0][0]))
-        {
-          console.log("Rejecting duplicate message  -----------------------");
-          return;
-        }
-
-        // determine whether to push new message on or just shift
-        if (messages.length < SCROLLING_MESSAGE_LENGTH)
-        {
-
-          // console.log("Message length less than scrolling limit");
-            // console.log("Do I get here 1");
-            messages.push(messages[messages.length-1]);
-
-            for (i=0; i<messages.length-2; i++)
-            {
-
-                console.log("Shifting a message down early");
-                messages[messages.length-2-i] = messages[messages.length-3-i];
-
-                // messages[messages.length-2-i][1] = messages[messages.length-3-i][1];
-            }
-
-            // console.log("Message length should now be 2 " + messages.length + "   messages is " + messages);
-
-        }
-        else
-        {
-
-              // console.log("Message at limit length.  Shift them down 1");
-              wentOverLimit = true;
-            // shift all messages down 1, # of iterations is one less than the length
-            for (i=0; i<messages.length-1; i++)
-            {
-              // console.log("Shifting a message down late");
-              messages[messages.length-1-i] = messages[messages.length-2-i];
-              // messages[messages.length-1-i][1] = messages[messages.length-2-i][1];
-            }
-
-        }
-
-        console.log("setting last message");
-        messages[0] = [inMessage, new Date(Date.now())];
-
-        // alert("End of function messages is " + messages);
-
-        if (wentOverLimit == true)
-        {
-          console.log("Slicing the messages array");
-          messages.length = SCROLLING_MESSAGE_LENGTH;
-        }
-
-    }
-
-} // end function postMessage
-
-
-// -----------------------------------------
-
-function buildMessageArea()
-{
-      var tempMessage = "";
-      var i;
-
-
-      // alert("In build messages area messages len is " + messages.length + "  messages is " + messages);
-
-      if (messages.length > SCROLLING_MESSAGE_LENGTH)
-        messages.length = SCROLLING_MESSAGE_LENGTH;
-
-      // console.log("In build messages area messages len is " + messages.length);
-
-      for (i=0; i<messages.length - 1; i++)
-      {
-          tempMessage += messages[i][0] + "<br>";
-      }
-
-      tempMessage += messages[i][0];
-
-      return messageHeaderHTML + "<br>" + tempMessage;
-
-}
-
-// ------------------------------
-
-function rebuildMessageAreaOnly()
-{
-    document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-
-}
-
-
-// ---------------------------------------------------------------
-// start function decodePlayerStatus
-
-function decodePlayerStatus(statusPassedIn)
-{
-  // console.log("decode called - status passed in = " + statusPassedIn);
-
-  switch (Number(statusPassedIn)) {
-
-    case PLAYER_STATUS_LOGGED_OFF:
-      return PLAYER_STATUS_LOGGED_OFF_TEXT;
       break;
 
-    case PLAYER_STATUS_WAITING:
-      return PLAYER_STATUS_WAITING_TEXT;
+    case 1:
+      window.alert("Commander Dugan I have completed the mission!.");
+      window.alert("Bob Dugan: Good job soldier, you've proved yourself and have earned the rank of Special Soldier!.");
+      window.alert("I've also captured one of the hostiles for questioning.");
+      window.alert("One week later.");
+      window.alert("Attention: Commander Dugan has assigned a special mission... to infiltrate an enemy base, hidden in a forest.");
+      window.alert("To complete the mission Salvage all pellets and enter the center of the board.");
+
       break;
 
-    case PLAYER_STATUS_SCHEDULED:
-        return PLAYER_STATUS_SCHEDULED_TEXT;
-        break;
+    case 2:
 
-    case PLAYER_STATUS_ACTIVE:
-      return PLAYER_STATUS_ACTIVE_TEXT;
-      break;
-
-    case PLAYER_STATUS_INACTIVE:
-      return PLAYER_STATUS_INACTIVE_TEXT;
-      break;
-
-    case PLAYER_STATUS_BREAK:
-      return PLAYER_STATUS_BREAK_TEXT;
-            break;
-
-    case PLAYER_STATUS_REGISTERED:
-      return PLAYER_STATUS_REGISTERED_TEXT;
-            break;
-
-    case PLAYER_STATUS_GAME_OVER:
-      return PLAYER_STATUS_GAME_OVER_TEXT;
-            break;
-
-    case PLAYER_STATUS_QUIT:
-      return PLAYER_STATUS_QUIT_TEXT;
-            break;
+      window.alert("HeadQuarters do you copy!!!.");
+      window.alert("HeadQuarters: Loud and clear!!!.");
+      window.alert("They seem to be creating some kind of monster ghost!!!.");
+      window.alert("Guard: Look its the pacman! Quick release the chomper!!!.");
+      window.alert("What do i do!?!?.");
+      window.alert("HeadQuarters: try killing it.");
+      window.alert("To complete the mission collect all pellets and kill the chomper at least once.  If you miss your chance, wait for another Power Pellet.");
 
     default:
-      console.log("decode called - default unknown returned.  Status passed in was " + statusPassedIn);
-      return PLAYER_STATUS_UNKNOWN_TEXT + statusPassedIn ;
 
   }
 
 }
 
-// ---------------------------------------------------------------
-// start function decodeGameStatus
 
-function decodeGameStatus(statusPassedIn)
-{
-  switch (statusPassedIn)
-  {
-    case GAME_STATUS_NOT_STARTED:
-      return GAME_STATUS_NOT_STARTED_TEXT;
+// -------------------------------------------------------------------------
+
+function showPacmanPP(pos) {
+  var squares = document.querySelectorAll('.square'); // faster to get first?
+
+  // show player one last instant before resetting round
+  switch (playerDirection) {
+    case UP:
+      squares[pos + boardSize].innerHTML = ""; // need extra blank because old space is after current space
+      squares[pos].innerHTML = PACMAN_UP_PP;
+
+      break;
+    case DOWN:
+      squares[pos].innerHTML = PACMAN_DOWN_PP;
+      break;
+    case LEFT:
+      squares[pos + 1].innerHTML = ""; // need extra blank because old space is after current space
+      squares[pos].innerHTML = PACMAN_LEFT_PP;
+      break;
+    case RIGHT:
+      squares[pos].innerHTML = PACMAN_RIGHT_PP;
+      break;
+    default:
+      console.log("Error in Switch");
+  } // end switch
+
+} // end function show pac man
+
+// ------------------------------------------------------------------------
+
+function recordScore() {
+  var topTenList = new Array; // build top 10 list as you go
+  var gameData = new Array; // story current game data.  doesn't need to be an array, but I got it to work fine this way.  JS knows how to stringify an array.
+  gameData.push([boardSize, numberOfGhosts, numberOfWallsStart, Number(document.getElementById("scoreVariable").innerHTML), document.getElementById("playerNameInput").value]);
+
+  var pmGameCount = 0;
+  var items = localStorage.length;
+
+  // check each item in local storage
+  for (i = 0; i < items; ++i) {
+    // get key
+    var key = localStorage.key(i);
+
+    // if key starts with pacman, continue checking
+    if (key.slice(0, 6) == PAC_MAN_KEY) {
+      pmGameCount++;
+      // get value
+      var value = localStorage.getItem(key);
+      //
+      if (value) {
+        // Parse old game data
+        var oldGameData = JSON.parse(value);
+
+        if ((oldGameData[0][0] == boardSize) && (oldGameData[0][1] == numberOfGhosts) && (oldGameData[0][2] == numberOfWallsStart) && (oldGameData[0][3] > Number(document.getElementById("scoreVariable").innerHTML))) {
+          playerRank++;
+        }
+      } // if value
+
+      // parse value
+
+      // check if game read matches configuration.  If it does...
+      // check score against each game read from local storage
+    } // end local storage for loop
+
+    // update playerRank if necessary
+
+  } // if key slice
+
+  localStorage.setItem(PAC_MAN_KEY + pmGameCount, JSON.stringify(gameData));
+
+}
+// -------------------------------------------------------------------------
+
+function showPacman(pos) {
+  var squares = document.querySelectorAll('.square'); // faster to get first?
+
+  // show player one last instant before resetting round
+  switch (playerDirection) {
+    case UP:
+      squares[pos + boardSize].innerHTML = ""; // need extra blank because old space is after current space
+      squares[pos].innerHTML = PACMAN_UP;
+
+      break;
+    case DOWN:
+      squares[pos].innerHTML = PACMAN_DOWN;
+      break;
+    case LEFT:
+      squares[pos + 1].innerHTML = ""; // need extra blank because old space is after current space
+      squares[pos].innerHTML = PACMAN_LEFT;
+      break;
+    case RIGHT:
+      squares[pos].innerHTML = PACMAN_RIGHT;
+      break;
+    default:
+      console.log("Error in Switch");
+  } // end switch
+
+} // end function show pac man
+
+// -------------------------------------------------------------------------
+
+function killPacman() {
+  currentSquare = OFF_THE_BOARD; // Player killed, move off board
+  lives = lives - 1;
+  messageBox.innerHTML = "YOU'VE BEEN KILLED!";
+  console.log("You were killed");
+  document.getElementById("livesVariable").innerHTML = lives;
+  if (lives == 0) {
+    messageBox.innerHTML = "GAME OVER.";
+    recordScore();
+    restartGame();
+  } else {
+    resetPlayer();
+  }
+}
+
+// --------------------------------------------------------------------
+
+function launchDoorTimerCheck(pos) {
+
+  console.log("Inside launch door");
+  doorTimerVar = setInterval(myDoorTimer, 100, pos);
+  // zzz to do, save this timer, so we can delete if necessary
+
+}
+
+// -------------------------------------------------------------------------
+
+function myDoorTimer(pos) {
+  console.log("Got into timer");
+  if (currentSquare == pos) {
+    restartRound();
+    showCurrentLevelMessageBoxes();
+  }
+}
+
+// --------------------------------------------------------------------
+
+function launchChomperKilledTimerCheck() {
+  // console.log ("Inside launch door");
+  chomperKilledTimerVar = setInterval(myCheckChomperKilledTimer, 100);
+  // zzz to do, save this timer, so we can delete if necessary
+
+}
+
+// -------------------------------------------------------------------------
+
+function myCheckChomperKilledTimer() {
+  // console.log ("Got into timer");
+  if (chomperKilled == true) {
+    chomperKilled = false;
+    restartRound();
+    showCurrentLevelMessageBoxes();
+  }
+}
+
+// -------------------------------------------------------------------------
+
+function storyModeConditionsComplete() {
+  switch (currentLevel) {
+
+    case 0:
+      return true;
       break;
 
-    case GAME_STATUS_ACTIVE:
-      return GAME_STATUS_ACTIVE_TEXT;
+    case 1:
+
+      // pac man must return to square 60 - can't finish last pellet on the square, so always return false after setting timer
+      launchDoorTimerCheck(DOOR_SQUARE_LEVEL_1);
+      // console.log ("launched door timer")
+      return false;
+
       break;
 
-    case GAME_STATUS_COMPLETED:
-      return GAME_STATUS_COMPLETED_TEXT;
-      break;
+    case 2:
 
-    case GAME_STATUS_PAUSED:
-      return GAME_STATUS_PAUSED_TEXT;
-      break;
+      // need to check if chomper killed
+      if (chomperKilled == true)
+        return true;
+      else // chomper not killed
+      {
 
-    case GAME_STATUS_COMPLETED:
-      return GAME_STATUS_COMPLETED_TEXT;
-      break;
+        console.log("Running new code");
 
-    case GAME_STATUS_OVERNIGHT:
-        return GAME_STATUS_OVERNIGHT_TEXT;
-        break;
+        var j;
+        var powerPelletFound = false;
 
-    case GAME_STATUS_MAINTENANCE:
-        return GAME_STATUS_MAINTENANCE_TEXT;
-        break;
+        // check if still out there
+        for (j = 0; j < powerPellets.length; j++) {
+          if (powerPellets[j] == PELLET)
+            powerPelletFound = true;
+        }
+
+        if (powerPelletFound == false) // no pp left, need to create timer to create new one.
+        {
+
+          console.log("No PP left, starting timer");
+          // zzz fix this bug - deal with timer
+          myPowerPelletTimerVar = setInterval(myPowerPelletTimer, POWER_PELLET_DELAY_STORY_MODE_LEVEL_2);
+
+        }
+
+        launchChomperKilledTimerCheck();
+        return false;
+        // console.log ("Chomper killed timer")
+      }
 
     default:
-      return GAME_STATUS_UNKNOWN_TEXT;
 
-  } // end switch
+      // should never get here
+      return true;
+  }
+
+}
+
+// --------------------------------------------------------------------------
+
+function myPowerPelletTimer() {
+
+  var squareFound = false;
+  var ppSquare;
+
+  while (squareFound == false) {
+    ppSquare = Math.floor(Math.random() * ((boardSize * boardSize) - 1)) + 1; // return any square on board except 0.
+
+    if ((ppSquare != currentSquare) && (walls[ppSquare] == NO_WALL)) {
+      console.log("Found a square for the new pp at " + ppSquare);
+      powerPellets[ppSquare] = POWER_PELLET;
+      squareFound = true;
+
+      renderGame();
+
+    } // end if
+
+  } // end while
 
 } // end function
 
-// ---------------------------------------------------------------
-// decode file errors
 
-function decodeFileErrorCode(error, picMissing)
-{
-  // A full list of error codes is available at
-  // https://firebase.google.com/docs/storage/web/handle-errors
-  console.log("Decode File Error Code called.");
-  switch (error.code)
+// --------------------------------------------------------------------------
+
+function getSquareStatus(pos) {
+  if (pos == currentSquare) // pac man found
   {
-    case 'storage/object-not-found':        // File doesn't exist
+    var ghostType = checkGhost(pos);
 
+    if (ghostType >= 0) // there is a ghost
+    {
+      switch (ghostType) {
+        case GHOST_TYPE_STANDARD:
+        case GHOST_TYPE_HOPPER:
+        case GHOST_TYPE_BOMBER:
+        case GHOST_TYPE_SPLITTER:
+        case GHOST_TYPE_MEGA:
+        case GHOST_TYPE_CHOMPER:
+        case GHOST_TYPE_TELEPORTER:
+        case GHOST_TYPE_PEEWEE:
+        case GHOST_TYPE_INVISIBLE:
 
-      if (picMissing == PIC_MISSING_TARGET)
-      {
-        // console.log("Got here - why?");
-        if ((targetId != "") && (gameStatus != GAME_STATUS_PAUSED) && (gameStatus != GAME_STATUS_COMPLETED))
-        {
-          document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
-          document.getElementById("targetPicture").src = "";
-          // document.getElementById("targetPicture").width = 0
-          // document.getElementById("targetPicture").height = 0;
-
-
-          // console.log("File not found errror  ------------");
-          // postMessage(MESSAGE_TEXT_TARGET_FILE_NOT_FOUND);
-
-        }
-
-        // document.getElementById("messageBoardLabel").innerHTML = "";
-        //document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-      }
-      else
-        document.getElementById("myPictureLabel").innerHTML = MY_PICTURE_LABEL + " File not found.";
-      break;
-
-    case 'storage/unauthorized':
-      // User doesn't have permission to access the object
-      console.log("No permissions.");
-      break;
-
-    case 'storage/canceled':
-      console.log("Storage cancelled.");
-      // User canceled the upload
-      break;
-
-    case 'storage/unknown':
-      console.log("Unknown error");
-      // Unknown error occurred, inspect the server response
-      break;
-
-  }
-
-}  // decodeFileErrorCode
-
-// ---------------------------------------------------------
-
-function buildPlayerDataRegion()
-{
-
-    // console.log("target type is " + targetType);
-
-    return "<span id='myIdLabel'>My ID: </span><span id = 'myId'>"
-            + playerId + "</span>  &nbsp &nbsp <span id='myNameLabel'>My Name: </span><span id = 'myName'>"
-            + name + "</span><br> <span id='myStatusLabel'>My Status: </span><span id = 'myStatus'>" + decodePlayerStatus(status) +  "</span><br> <span id='myOwedLabel'>Bounties Owed: </span><span id = 'myOwed'>" + owed + "</span> &nbsp &nbsp <span id='myTotalLabel'>Total: </span><span id = 'myTotal'>" + total + "</span><br> <span id='myTargetLabel'>My Target's Name: </span><span id = 'myTargetsName'>" + targetName +  "</span><br> <span id='gameStatusLabel'>Game Status: </span><span id = 'gameStatus'>" + decodeGameStatus(gameStatus) + "</span>";
-
-}
-
-// ---------------------------------------------------------
-
-function buildPictureAreaRegion()
-{
-      if ((status == PLAYER_STATUS_REGISTERED) && (loggedIn == true) && (myPicApproved == 0))
-      {
-          return pictureAreaHTML;
-      }
-      else {
-        return "";
-      }
-
-}
-
-// ---------------------------------------------------------
-
-function buildStatsRegion()
-{
-
-  console.log("Build stats Region called");
-
-  return "<div id='statsLabel'><u>Statistics:</u></div></span> <br> <span id='statsActiveLabel'>Active Players: </span><span id = 'statsActive'>" + statsActive + "</span><br>" +
-         "<span id='statsWaitingLabel'>Waiting For Assignment: </span><span id = 'statsWaiting'>" + statsWaiting + "</span><br>" +
-         "<span id='statsSchedLabel'>Scheduled: </span><span id = 'statsSched'>" + statsSched + "</span><br>" +
-         "<span id='statsTotalLabel'>Total Players: </span><span id = 'statsTotal'>" + statsTotal + "</span><br>" +
-         "<span id='statsKillsLabel'>Total Kills: </span><span id = 'statsTotalKills'>" + statsTotalKills + "</span><br>" +
-         "<span id='statsTodaysLabel'>Today's Kills: </span><span id = 'statsTodaysKills'>" + statsTodaysKills + "</span><br>" +
-         "<span id='statsLeaderLabel'>Most Kills: </span><span id = 'statsCurrentLeader'>" + statsCurrentLeader;
-}
-
-// ------------------------------------------------
-
-function checkToResizeMyPicture()
-{
-
-    console.log("checkToResizeMyPicture timer called ------------------------");
-    // check to resize target picture
-
-    // if (status == PLAYER_STATUS_ACTIVE) || (status == PLAYER_STATUS_)
-    // {
-        var targetImage = document.getElementById('myPicture');
-
-        var tempWidth = targetImage.clientWidth;
-        var tempHeight = targetImage.clientHeight;
-
-        var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
-        var factor2 = 1/factor1;
-
-        console.log("checkToResizeMyPicture called - width is " + tempWidth + "  Height is " + tempHeight);
-
-        // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
-        if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
-        {
-          console.log("Got here 1");
-          targetImage.width = tempWidth * factor2;
-          targetImage.height = tempHeight * factor2;
-        }
-        else
-        {
-          console.log("Got here 2");
-          if (tempWidth != PICTURE_SIZE_LOWER_SIZE)
-            picResizeTimer = setTimeout(checkToResizeMyPicture, 100);
-        }
-    // }
-
-}
-
-// ------------------------------------------------
-
-function checkToResizeTargetPicture()
-{
-
-          console.log("checkToResizeTargetPicture timer called ------------------------");
-          // check to resize target picture
-
-          if (status == PLAYER_STATUS_ACTIVE)
-          {
-              var targetImage = document.getElementById('targetPicture');
-
-              var tempWidth = targetImage.clientWidth;
-              var tempHeight = targetImage.clientHeight;
-
-              var factor1 = tempWidth / PICTURE_SIZE_LOWER_SIZE;
-              var factor2 = 1/factor1;
-
-              // if ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE))
-              if (  (tempWidth != 0) && ((tempWidth < PICTURE_SIZE_LOWER_SIZE) || (tempWidth > PICTURE_SIZE_UPPER_SIZE)))
-              {
-                targetImage.width = tempWidth * factor2;
-                targetImage.height = tempHeight * factor2;
-              }
-              else
-              {
-                if (tempWidth != PICTURE_SIZE_LOWER_SIZE)
-                    picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);
-              }
+          // put logic here to check if on Power Pellet
+          if (powerPelletStatus == POWER_PELLET_OFF)
+            return SQ_STATUS_PAC_ON_GHOST; // add another one here pac on ghost on pellet
+          else {
+            if ((ghostType == GHOST_TYPE_CHOMPER) && (gameMode == MODE_STORY) && (currentLevel == 2))
+              chomperKilled = true;
+            return SQ_STATUS_PAC_ON_GHOST_ON_POWER_PELLET_STATUS;
           }
-
-}
-
-// --------------------------------------
-
-function showMyPicIfNecessary()
-{
-        if (showMyPic == true)
-        {
-            document.getElementById("myPicture").style.visibility = "hidden";
-
-            document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-            document.getElementById("myPicture").src = myURL;
-
-            // kick off timer process to check picture size
-            picResizeTimer2 = setTimeout(checkToResizeMyPicture, 100);   // run timed function in .1 seconds
-
-            document.getElementById("myPicture").style.visibility = "visible";
-
-        }
-
-}
-
-
-// ---------------------------------------------------------
-// Render the ui based on the players status
-
-function renderGame(myStatus)
-{
-  console.log("----- Render Game called at the top status is " + decodePlayerStatus(myStatus));
-
-  switch (Number(myStatus))
-  {
-    case PLAYER_STATUS_LOGGED_OFF:
-
-        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-        var tempLoginRegion;
-
-        if (gameStatus == GAME_STATUS_NOT_STARTED)
-        {
-            tempLoginRegion = loginOrRegisterNoCheckboxes;
-        }
-        else
-        {
-            tempLoginRegion = loginOrRegisterHTML;
-        }
-
-        myBody.innerHTML = headerHTML + "<br>" + tempLoginRegion + "<br>" + buildMessageArea() + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-        showRules = false;
-
-        break;
-
-    case PLAYER_STATUS_WAITING:
-
-        postMessage(MESSAGE_TEXT_WAITING);
-
-        var tempBody;
-        var tempButtonBar;
-        var tempViewMyPicArea = "";
-        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-        buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML;
-
-        if (showMyPic == true)
-        {
-            tempViewMyPicArea = myPictureAreaHTML;
-        }
-
-        tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-        myBody.innerHTML = tempBody;
-
-        document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-        document.getElementById("myTargetsName").innerHTML = "";
-
-        showMyPicIfNecessary();
-
-        showRules = false;
-
-        break;
-
-    case PLAYER_STATUS_SCHEDULED:
-
-        postMessage(MESSAGE_TEXT_SCHEDULED);
-
-        var tempBody;
-        var tempViewMyPicArea = "";
-        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-        buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML;
-
-        if (showMyPic == true)
-        {
-            tempViewMyPicArea = myPictureAreaHTML;
-        }
-
-        tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-        myBody.innerHTML = tempBody;
-
-        document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-        document.getElementById("myTargetsName").innerHTML = "";
-
-        showMyPicIfNecessary();
-
-        showRules = false;
-
-        break;
-
-    case PLAYER_STATUS_ACTIVE:
-
-              if (statsOnlyChange == true)
-              {
-                  statsOnlyChange = false;
-                  console.log("Stats only change =====================================")
-
-                  // alert(document.getElementById("myBody").innerHTML);
-
-                  document.getElementById("statsWaiting").innerHTML = statsWaiting;
-                  document.getElementById("statsCurrentLeader").innerHTML = statsCurrentLeader;
-                  document.getElementById("statsTodaysKills").innerHTML = statsTodaysKills;
-                  document.getElementById("statsTotalKills").innerHTML = statsTotalKills;
-                  document.getElementById("statsTotal").innerHTML = statsTotal;
-                  document.getElementById("statsSched").innerHTML = statsSched;
-                  document.getElementById("statsActive").innerHTML = statsActive;
-
-                  return;
-              }
-
-              var tempBody;
-              var tempViewMyPicArea = "";
-              var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-              var tempVolunteer = (volunteerNeeded == true) ? volunteerButtonHTML : "";
-
-              buttonStripRegion = "<br>" + logOffButtonHTML + " &nbsp " + takeABreakButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " +  rulesButtonHTML + " &nbsp " + quitGameButtonHTML + " &nbsp " + tempVolunteer; // + " &nbsp " + quitGameButtonHTML;
-
-              if (showMyPic == true)
-              {
-                  tempViewMyPicArea = myPictureAreaHTML;
-              }
-
-              tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br><br>" + confirmKillHTML + "<br>" + myTargetDataHTML  + "<br>" + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-              myBody.innerHTML = tempBody;
-
-
-              document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-
-              showMyPicIfNecessary();
-
-              if (targetId != "")
-              {
-
-                    // get my target's name and update screen
-                    // create a reference to my target's player record
-                    var myTargetsPlayerRef = db.collection("players").doc(targetId);
-                    // line above blows up when link is deleted and there is no data.
-
-                    myTargetsPlayerRef.get().then(function(doc)
-                    {
-                      if (doc.exists)
-                      {
-                          targetName = doc.data().name;
-
-                          var tempTargetName = targetName;
-
-                          console.log("This line -------- doc data type is " + doc.data().celeb + "  for target id = " + targetId + " doc id is " + doc.id);
-
-                          if (doc.data().celeb == PLAYER_TYPE_CELEBRITY)
-                          {
-                            targetType = PLAYER_TYPE_CELEBRITY;
-                            tempTargetName = targetName + " ** Celebritarian **";
-                            console.log("Setting targetType to " + targetType + " For target id = " + targetId + "  doc id is " + doc.id);
-
-                            // postMessage("Your target is a celebritarian, +1 bounty for an assassination.");
-                            // targetName += " ** Celebrity **";
-                          }
-                          else
-                          {
-                            targetType = PLAYER_TYPE_REGULAR;
-                          }
-
-                          // console.log("Doc exists for my target - Name is " + targetName + "  Target id is " + targetId + "  Rest is " + String(targetId) + "/" + doc.data().pictureName);
-
-                          document.getElementById("myTargetsName").innerHTML = tempTargetName;
-
-                          // update my targets picture - I need targetID and the filename from the player record
-                          var myTargetsPictureRef = storageRef.child(String(targetId) + "/" + doc.data().pictureName);
-
-                          myTargetsPictureRef.getDownloadURL().then(function(url)
-                          {
-                            console.log("getDownloadURL worked in render game status active - targets picture");
-                            // document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL; // yyy
-
-                            document.getElementById("targetPicture").style.visibility = "hidden";
-
-                            //document.getElementById("targetPicture").width = 1;
-                            //document.getElementById("targetPicture").height = 1;
-
-
-                            document.getElementById("targetPicture").src = url;
-                            document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2  + "<br>";
-
-
-                            // kick off timer process to check picture size
-                            picResizeTimer = setTimeout(checkToResizeTargetPicture, 100);   // run timed function in .1 seconds
-
-                            document.getElementById("targetPicture").style.visibility = "visible";
-
-                          }).catch(function(error)
-                            {
-
-                              if ((targetId != "") && (gameStatus != GAME_STATUS_PAUSED) && (gameStatus != GAME_STATUS_COMPLETED))
-                              {
-                                // console.log("Game status at this point is -------- " + decodeGameStatus(gameStatus));
-                                document.getElementById("myTargetsPictureLabel").innerHTML = MY_TARGETS_PICTURE_LABEL_PART1 + targetName + MY_TARGETS_PICTURE_LABEL_PART2 + " File Not Found.";
-                                document.getElementById("targetPicture").src = "";
-                                // document.getElementById("targetPicture").width = 0
-                                // document.getElementById("targetPicture").height = 0;
-
-                                console.log("File not found errror2  ------------");
-                                // postMessage(MESSAGE_TEXT_TARGET_FILE_NOT_FOUND);
-
-                                rebuildMessageAreaOnly();
-
-                              }
-
-                            } // end catch error
-
-                          );
-
-                        } // end if my targets player ref doc exists
-                        else {
-                          // my target's player record doesn't exist
-                        }
-                    }); // end .get on target's player record
-
-              }
-
-              showRules = false;
-
-        break;
-
-    case PLAYER_STATUS_INACTIVE:
-
-            var tempBody;
-            var tempBuyBack;
-            var tempViewMyPicArea = "";
-            var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-            if (owed > 0)
-                tempBuyBack = buyBackInButtonHTML;
-            else
-              tempBuyBack = "";
-
-            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + tempBuyBack + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
-
-            if (showMyPic == true)
-            {
-                tempViewMyPicArea = myPictureAreaHTML;
-            }
-
-            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-            myBody.innerHTML = tempBody;
-
-            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-            document.getElementById("myTargetsName").innerHTML = "";
-
-            showMyPicIfNecessary();
-
-            showRules = false;
-
-            break;
-
-      case PLAYER_STATUS_BREAK:
-
-            var tempBody;
-            var tempViewMyPicArea = "";
-            var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + returnFromBreakButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
-
-            if (showMyPic == true)
-            {
-                tempViewMyPicArea = myPictureAreaHTML;
-            }
-
-            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-            myBody.innerHTML = tempBody;
-
-            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-
-            showMyPicIfNecessary();
-
-            document.getElementById("myTargetsName").innerHTML = "";
-
-            targetName = "";
-            targetType = 0;
-            // console.log("You are looking for this --------------------------");
-            //targetId = "";
-            showRules = false;
-
-            break;
-
-    case PLAYER_STATUS_REGISTERED:
-
-      // 2 cases, registered before log in or after log in
-        var tempViewMyPicArea = "";
-        var tempRulesRegionHTML = (showRules == true) ? RULES_TEXT : "";
-
-        if (showMyPic == true)
-        {
-            tempViewMyPicArea = myPictureAreaHTML;
-        }
-
-
-        if (loggedIn == true)
-        {
-            var tempBody;
-
-            buttonStripRegion = "<br> " + logOffButtonHTML + " &nbsp " + viewMyPictureButtonHTML + " &nbsp " + rulesButtonHTML + " &nbsp " + quitGameButtonHTML; // + " &nbsp " + quitGameButtonHTML;
-
-            tempBody = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + " <br> " + buttonStripRegion + "<br><br>" + buildPictureAreaRegion() + tempViewMyPicArea + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-            myBody.innerHTML = tempBody;
-
-            document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-            document.getElementById("myTargetsName").innerHTML = "";
-
-            showMyPicIfNecessary();
-
-        }
-        else
-        {
-
-            var tempLoginRegion;
-
-            if (gameStatus == GAME_STATUS_NOT_STARTED)
-            {
-                tempLoginRegion = loginOrRegisterNoCheckboxes;
-            }
-            else
-            {
-                tempLoginRegion = loginOrRegisterHTML;
-            }
-
-              // loginRegion = loginOrRegisterHTML;
-              buttonStripRegion = "";
-
-              myBody.innerHTML = headerHTML + "<br>" + tempLoginRegion + "<br> " + buildMessageArea() + "<br><br>" + buildStatsRegion() + "<br><br>" + tempRulesRegionHTML;
-
-              document.getElementById("idInputBox").value = playerId;
-
-              showMyPicIfNecessary();
-
-              // if (showMyPic == true)
-              // {
-              //     document.getElementById("myPictureLabel").innerHTML = "<br>" + MY_PICTURE_LABEL + "<br><br>";
-              //     document.getElementById("myPicture").src = myURL;
-              // }
-
-        }
-
-        showRules = false;
-
-        break;
-
-    case PLAYER_STATUS_GAME_OVER:
-    case PLAYER_STATUS_QUIT:
-
-
-          myBody.innerHTML = headerHTML + "<br>" + buildPlayerDataRegion() + "<br><br>" + messageHeaderHTML + "<br><br>" + logOffButtonHTML + "<br><br>" + buildStatsRegion() + "<br><br>" + RULES_TEXT;
-
-          document.getElementById("messageBoardLabel").innerHTML = buildMessageArea();
-          document.getElementById("myTargetsName").innerHTML = "";
 
           break;
 
-    default:
-      console.log("Render game called, default status is " + decodePlayerStatus(myStatus));
+        case GHOST_TYPE_INVINCIBLE:
+          return SQ_STATUS_PAC_ON_GHOST_INVINCIBLE;
 
-  }  // end switch on my status
+          break;
 
-}
+        default:
+
+      } // end switch
+
+    } // check ghost
+    else {
+      if (checkBomb(pos) == true)
+        return SQ_STATUS_PAC_ON_BOMB;
+
+      if (goodBombs[pos] == BOMB) {
+        // console.log("Good bomb found");
+        return SQ_STATUS_PAC_ON_GOOD_BOMB;
+      }
+
+      if (pellets[pos] == PELLET)
+        return SQ_STATUS_PAC_ON_PELLET;
+
+      if (powerPellets[pos] == POWER_PELLET) {
+        console.log("Pac Man ate a PP");
+        return SQ_STATUS_PAC_ON_POWER_PELLET;
+      }
+
+      return SQ_STATUS_PAC_ON_BLANK;
+    } // end else, no guost
+  } // end if pos = pac man
+
+  var myGhostType = checkGhost(pos);
+
+  if (myGhostType == GHOST_TYPE_STANDARD) // check for ghost
+    return SQ_STATUS_GHOST;
+
+  if (myGhostType == GHOST_TYPE_INVINCIBLE) // check for ghost
+    return SQ_STATUS_GHOST_INVINCIBLE;
+
+  if (myGhostType == GHOST_TYPE_CHOMPER) // check for ghost
+    return SQ_STATUS_GHOST_CHOMPER;
+
+  if (myGhostType == GHOST_TYPE_HOPPER) // check for hopper
+    return SQ_STATUS_GHOST_HOPPER;
+
+  if (myGhostType == GHOST_TYPE_MEGA) // check for ghost
+    return SQ_STATUS_GHOST_MEGA;
+
+  if (myGhostType == GHOST_TYPE_BOMBER) // check for ghost
+    return SQ_STATUS_GHOST_BOMBER;
+
+  if (myGhostType == GHOST_TYPE_INVISIBLE) // check for ghost
+    return SQ_STATUS_GHOST_INVISIBLE;
+
+  if (myGhostType == GHOST_TYPE_SPLITTER) // check for ghost
+    return SQ_STATUS_GHOST_SPLITTER;
+
+  if (myGhostType == GHOST_TYPE_TELEPORTER) // check for ghost
+    return SQ_STATUS_GHOST_TELEPORTER;
+
+  if (myGhostType == GHOST_TYPE_PEEWEE) // check for ghost
+  {
+    // console.log ("Peewee found, now checking if he's going on a wall.")
+    if (walls[pos] == WALL_TWO_THIRDS) {
+      // console.log ("Peewee on two thirds found.");
+      return SQ_STATUS_GHOST_PEEWEE_ON_TWO_THIRDS;
+    } else if (walls[pos] == WALL_ONE_THIRD) {
+      // console.log ("Peewee on one third found");
+      return SQ_STATUS_GHOST_PEEWEE_ON_ONE_THIRD;
+    } else {
+      // console.log ("Peewee found, no wall.")
+      return SQ_STATUS_GHOST_PEEWEE;
+    }
+  }
+
+  if (checkBomb(pos) == true) // check for ghost
+    return SQ_STATUS_BOMB_ON_BLANK;
+
+  if (walls[pos] != NO_WALL) // check for wall
+    return SQ_STATUS_WALL;
+
+  if (goodBombs[pos] == GOOD_BOMB) {
+    // console.log("Good bomb found in square " + pos);
+    return SQ_STATUS_GOOD_BOMB;
+  }
+
+  if (pellets[pos] == PELLET)
+    return SQ_STATUS_PELLET;
+
+  if (powerPellets[pos] == POWER_PELLET)
+    return SQ_STATUS_POWER_PELLET;
+
+  return SQ_STATUS_BLANK;
+
+} // end function get Square status
+
+// --------------------------------------------------------------------------
+
+function renderGame() {
+  //console.log("In Render Game 1.");
+  var squares = document.querySelectorAll('.square'); // faster to get first?
+  var i;
+  //console.log("In Render Game 2.");
+
+  // console.log ("In Render Game, ghosts are " + ghosts);
+  for (i = 0; i < boardSize * boardSize; i++) {
+    var squareStatus = getSquareStatus(i);
+
+    //console.log ("Get Square Status called.  Status is " + squareStatus);
+    switch (squareStatus) {
+      case SQ_STATUS_PAC_ON_PELLET:
+
+        document.getElementById("scoreVariable").innerHTML = Number(document.getElementById("scoreVariable").innerHTML) + 1;
+        if (document.getElementById("scoreVariable").innerHTML >= freeLives * EXTRA_LIFE_LEVEL) {
+          lives++;
+          freeLives++;
+          document.getElementById("livesVariable").innerHTML = lives;
+          document.getElementById("messageBox").innerHTML = "Extra Life Earned!";
+        }
+        pellets[i] = NO_PELLET;
+        //console.log("Big switch - Pellet eaten. " + pelletsLeft + " remaining.");
+
+        if (--pelletsLeft == 0) {
+          console.log("Finished Pellets.");
+
+          if (powerPelletStatus == POWER_PELLET_ON) {
+            showPacmanPP(i);
+          } else {
+            showPacman(i); // briefly show in last spt before resetting board
+          }
+
+          // zzz - if all pellets eaten - check here for conditions
+
+          if (gameMode == MODE_STORY) {
+            if (storyModeConditionsComplete() == true) {
+              restartRound();
+              showCurrentLevelMessageBoxes();
+            }
+          } else
+            restartRound();
+
+          return; //  Round over - return here ---------------
+
+        } // finished board
+
+
+        if (powerPelletStatus == POWER_PELLET_ON) {
+          showPacmanPP(i);
+        } else {
+          showPacman(i); // briefly show in last spt before resetting board
+        }
+
+        break;
+
+      case SQ_STATUS_PAC_ON_GOOD_BOMB:
+
+        bombsCount++;
+        document.getElementById("bombsVariable").innerHTML = bombsCount;
+        goodBombs[i] = NO_GOOD_BOMB;
+        console.log("Pacman gained a bomb!");
+
+        if (pellets[i] == PELLET) {
+          pellets[i] = NO_PELLET;
+
+          if (--pelletsLeft == 0) {
+            console.log("Finished Pellets.");
+
+
+            showPacmanPP(i);
+
+            // zzz - check for conditions
+
+            if (gameMode == MODE_STORY) {
+              if (storyModeConditionsComplete() == true) {
+                restartRound();
+                showCurrentLevelMessageBoxes();
+              }
+            } else
+              restartRound();
+
+            return; //  Round over - return here ---------------
+
+          }
+        } // end check for pellet
+
+        showPacman(i);
+
+        break;
+
+      case SQ_STATUS_PAC_ON_POWER_PELLET:
+
+        powerPelletStatus = POWER_PELLET_ON;
+        powerPellets[i] = NO_PELLET;
+
+        // set timer
+        console.log("Power Pellet eaten in square: " + i);
+        var myVar = setTimeout(myPPTimer, POWER_PELLET_DELAY * 1000);
+        showPacmanPP(i);
+
+        break;
+
+      case SQ_STATUS_PAC_ON_GHOST_ON_POWER_PELLET_STATUS:
+
+        var j;
+        // kill ghost
+        for (j = 0; j < ghosts.length; j++) {
+          if (ghosts[j][GHOST_INDEX_POSITION] == i) {
+            document.getElementById("scoreVariable").innerHTML = Number(document.getElementById("scoreVariable").innerHTML) + GHOST_POINTS;
+
+            if (document.getElementById("scoreVariable").innerHTML >= freeLives * EXTRA_LIFE_LEVEL) {
+              lives++;
+              freeLives++;
+              document.getElementById("livesVariable").innerHTML = lives;
+              document.getElementById("messageBox").innerHTML = "Extra Life Earned!";
+            }
+
+            console.log("I killed ghost in position " + j);
+            ghosts[j][GHOST_INDEX_POSITION] = OFF_THE_BOARD; // high negative number
+
+            var splitterCount = 0;
+
+            //  check splitter logic, only re-incarnate if less than original splitters on board
+            if (ghosts[j][GHOST_INDEX_TYPE] == GHOST_TYPE_SPLITTER) {
+              var k;
+
+              for (k = 0; k < ghosts.length; k++) {
+                if ((ghosts[k][GHOST_INDEX_TYPE] == GHOST_TYPE_SPLITTER) && (ghosts[k][GHOST_INDEX_POSITION] != OFF_THE_BOARD)) {
+                  splitterCount++;
+                }
+              }
+            }
+
+
+            // only bring ghost back to life if not a mega ghost and not an extra splitter
+            if ((ghosts[j][GHOST_INDEX_TYPE] != GHOST_TYPE_MEGA) && (splitterCount < originalSplitterCount + 1)) {
+              // already fixed bug here, need to record the timer id returned and cancel it between rounds - zzz
+              ghosts[j][GHOST_INDEX_DEATH_TIMER_ID] = setTimeout(myGhostResetTimer, RESET_GHOST_DELAY * 1000, j);
+            }
+          }
+        }
+
+        if (pellets[i] == PELLET) {
+          pellets[i] = NO_PELLET;
+
+          if (--pelletsLeft == 0) {
+            console.log("Finished Pellets.");
+
+            showPacmanPP(i);
+
+            // zzz - Check conditions
+
+            if (gameMode == MODE_STORY) {
+              if (storyModeConditionsComplete() == true) {
+                restartRound();
+                showCurrentLevelMessageBoxes();
+              }
+            } else
+              restartRound();
+
+            return; //  Round over - return here ---------------
+
+          }
+        }
+
+        showPacmanPP(i);
+
+        break;
+
+      case SQ_STATUS_PAC_ON_BOMB:
+      case SQ_STATUS_PAC_ON_BLANK:
+
+        // console.log("Big switch - Pac on Blank or Pac on Bomb.");
+
+        if (powerPelletStatus == POWER_PELLET_ON) {
+          showPacmanPP(i);
+        } else {
+          showPacman(i); // briefly show in last spt before resetting board
+        }
+
+        break;
+
+      case SQ_STATUS_GHOST:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST;
+
+        break;
+
+
+      case SQ_STATUS_GHOST_INVINCIBLE:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST_INVINCIBLE;
+        break;
+
+
+      case SQ_STATUS_GHOST_BOMBER:
+
+        squares[i].innerHTML = ICON_GHOST_BOMBER;
+        break;
+
+      case SQ_STATUS_GHOST_INVISIBLE:
+
+        var tempInvisibleNum = Math.floor(Math.random() * 100) + 1; // 1 to 100 range
+
+        if (tempInvisibleNum >= GHOST_INVISIBLE_PERCENTAGE) {
+          squares[i].innerHTML = ICON_GHOST_INVISIBLE;
+        } else {
+          // Only need to check for beginning of game scenario - pellets and power pellets
+          // later on, doing nothing will show bombs, good bombs, etc.
+
+          if (powerPellets[i] == PELLET)
+            squares[i].innerHTML = ICON_POWER_PELLET;
+          else if (pellets[i] == PELLET)
+            squares[i].innerHTML = ICON_PELLET;
+
+        }
+
+        break;
+
+      case SQ_STATUS_GHOST_MEGA:
+
+        //console.log("Big switch - Ghost - mega");
+        squares[i].innerHTML = ICON_GHOST_MEGA;
+        break;
+
+      case SQ_STATUS_GHOST_CHOMPER:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST_CHOMPER;
+        break;
+
+
+      case SQ_STATUS_GHOST_HOPPER:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST_HOPPER;
+        break;
+
+      case SQ_STATUS_GHOST_SPLITTER:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST_SPLITTER;
+        break;
+
+      case SQ_STATUS_GHOST_PEEWEE_ON_ONE_THIRD:
+
+        //console.log("Big switch - Ghost");
+
+        //console.log("In Render - Peewee on one third should show");
+        //console.log("i = " + i + " Walls of i = " + walls[i]);
+        squares[i].innerHTML = ICON_GHOST_PEEWEE_ON_ONE_THIRD;
+        // alert ("Break");
+        break;
+
+      case SQ_STATUS_GHOST_PEEWEE_ON_TWO_THIRDS:
+
+        //console.log("In Render - Peewee on two thirds should show");
+        //console.log("i = " + i + " Walls of i = " + walls[i]);
+        squares[i].innerHTML = ICON_GHOST_PEEWEE_ON_TWO_THIRDS;
+        //alert ("Break");
+        break;
+
+
+      case SQ_STATUS_GHOST_PEEWEE:
+
+        //console.log("Big switch - Ghost");
+        squares[i].innerHTML = ICON_GHOST_PEEWEE;
+        break;
+
+      case SQ_STATUS_GHOST_TELEPORTER:
+
+        //           console.log("TELEPORTER");
+        squares[i].innerHTML = ICON_GHOST_TELEPORTER;
+        break;
+
+      case SQ_STATUS_PAC_ON_GHOST:
+
+        switch (checkGhost(i)) {
+          case GHOST_TYPE_MEGA:
+            squares[i].innerHTML = ICON_GHOST_MEGA;
+            break;
+
+          case GHOST_TYPE_CHOMPER:
+            squares[i].innerHTML = ICON_GHOST_CHOMPER;
+            break;
+
+          case GHOST_TYPE_HOPPER:
+            squares[i].innerHTML = ICON_GHOST_HOPPER;
+            break;
+
+          case GHOST_TYPE_BOMBER:
+            squares[i].innerHTML = ICON_GHOST_BOMBER;
+            break;
+
+          case GHOST_TYPE_INVISIBLE:
+            squares[i].innerHTML = ICON_GHOST_INVISIBLE;
+            break;
+
+          case GHOST_TYPE_PEEWEE:
+            squares[i].innerHTML = ICON_GHOST_PEEWEE;
+            break;
+
+          case GHOST_TYPE_INVINCIBLE:
+            squares[i].innerHTML = ICON_GHOST_INVINCIBLE;
+            break;
+
+          case GHOST_TYPE_TELEPORTER:
+            squares[i].innerHTML = ICON_GHOST_TELEPORTER;
+            break;
+
+          case GHOST_TYPE_SPLITTER:
+            squares[i].innerHTML = ICON_GHOST_SPLITTER;
+            break;
+
+          default: // Standard ghost
+            squares[i].innerHTML = ICON_GHOST;
+        }
+
+        killPacman();
+
+        break;
+
+      case SQ_STATUS_PAC_ON_GHOST_INVINCIBLE:
+
+        squares[i].innerHTML = ICON_GHOST_INVINCIBLE;
+        killPacman();
+        break;
+
+
+      case SQ_STATUS_BLANK: // why is color looking weird here on mac vs. windows?
+
+        squares[i].innerHTML = "";
+
+        break;
+
+      case SQ_STATUS_WALL:
+
+        switch (walls[i]) {
+          case WALL:
+            squares[i].innerHTML = ICON_WALL;
+            break;
+
+          case WALL_TWO_THIRDS:
+            squares[i].innerHTML = ICON_WALL_TWO_THIRDS;
+            break;
+
+          case WALL_ONE_THIRD:
+            squares[i].innerHTML = ICON_WALL_ONE_THIRD;
+            break;
+          default:
+
+        }
+
+        break;
+
+      case SQ_STATUS_GOOD_BOMB:
+
+        // console.log ("In render game, good bomb, i = " + i);
+        squares[i].innerHTML = ICON_GOOD_BOMB;
+        break;
+
+      case SQ_STATUS_PELLET:
+
+        squares[i].innerHTML = ICON_PELLET;
+        break;
+
+      case SQ_STATUS_POWER_PELLET:
+
+        squares[i].innerHTML = ICON_POWER_PELLET;
+        break;
+
+        //case SQ_STATUS_PAC_ON_SPECIAL:
+        //  break;
+
+      case SQ_STATUS_BOMB_ON_BLANK:
+
+        squares[i].innerHTML = ICON_BOMB;
+        break;
+
+      default:
+        console.log("Error in renderGame switch, invalid square status : " + squareStatus);
+    } // end switch
+
+  } // end for loop
+
+  // console.log("In Render Game 5.");
+
+} // end function renderGame
